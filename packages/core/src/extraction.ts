@@ -43,14 +43,18 @@ const PROFILE_NAME_SELECTOR = [
   'main [data-anonymize="person-name"]',
   '[role="main"] [data-anonymize="person-name"]',
   'main .text-heading-xlarge',
-  '[role="main"] .text-heading-xlarge'
+  '[role="main"] .text-heading-xlarge',
+  "main h1",
+  '[role="main"] h1'
 ].join(", ");
 const PROFILE_HEADLINE_SELECTOR = [
   '[data-lpe-section="identity"] [data-field="headline"]',
   ".pv-top-card .text-body-medium.break-words",
   '[class*="pv-top-card"] [class*="text-body-medium"][class*="break-words"]',
   'main .text-body-medium.break-words',
-  '[role="main"] .text-body-medium.break-words'
+  '[role="main"] .text-body-medium.break-words',
+  'main [class*="text-body-medium"]',
+  '[role="main"] [class*="text-body-medium"]'
 ].join(", ");
 const PROFILE_LOCATION_SELECTOR = [
   '[data-lpe-section="identity"] [data-field="location"]',
@@ -122,13 +126,30 @@ export function hasProfileContent(document: Document): boolean {
   if (document.querySelector("[data-lpe-profile]")) return true;
   if (!document.querySelector(PROFILE_ROOT_SELECTOR)) return false;
 
-  const name = text(document, PROFILE_NAME_SELECTOR);
+  const name = text(document, PROFILE_NAME_SELECTOR) ?? profileMetadata(document).name;
   return Boolean(name && !isLinkedInGateText(name));
 }
 
 function isLinkedInGateText(value: string): boolean {
   const normalized = value.toLowerCase();
-  return /^(sign in|log in|join linkedin|linkedin)$/.test(normalized) || normalized.includes("sign in to view");
+  return /^(sign in|log in|join linkedin|linkedin)$/.test(normalized) || normalized.includes("sign in") || normalized.includes("log in") || normalized.includes("login");
+}
+
+function profileMetadata(document: Document): { name?: string; headline?: string } {
+  const title = document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.content ?? document.title;
+  const cleanedTitle = title
+    ?.replace(/\s*\|\s*LinkedIn\s*$/i, "")
+    .replace(/\s*-\s*LinkedIn\s*$/i, "")
+    .trim();
+  if (!cleanedTitle || isLinkedInGateText(cleanedTitle)) return {};
+
+  const [name, ...headlineParts] = cleanedTitle.split(/\s+-\s+/);
+  const headline = headlineParts.join(" - ").trim();
+  const metadata: { name?: string; headline?: string } = {};
+  const trimmedName = name?.trim();
+  if (trimmedName) metadata.name = trimmedName;
+  if (headline) metadata.headline = headline;
+  return metadata;
 }
 
 export function extractProfileFromHtml(html: string, options: ExtractionOptions = {}): Profile {
@@ -188,13 +209,15 @@ export function extractProfileFromDocument(document: Document, options: Extracti
   const locale = state?.metadata?.locale ?? document.documentElement.lang;
   const profileImageUrl = document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content;
   const about = text(document, '[data-lpe-section="identity"] [data-field="about"]');
+  const metadata = profileMetadata(document);
 
   const profile: Profile = profileSchema.parse({
     schemaVersion: SCHEMA_VERSION,
     identity: {
-      name: text(document, PROFILE_NAME_SELECTOR) ?? "Unknown LinkedIn Profile",
+      name: text(document, PROFILE_NAME_SELECTOR) ?? metadata.name ?? "Unknown LinkedIn Profile",
       headline:
         text(document, PROFILE_HEADLINE_SELECTOR) ??
+        metadata.headline ??
         state?.identity?.headline ??
         document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content,
       location: text(document, PROFILE_LOCATION_SELECTOR),

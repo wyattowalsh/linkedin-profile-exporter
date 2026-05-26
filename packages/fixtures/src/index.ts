@@ -159,6 +159,19 @@ export const liveLikeProfileHtml = String.raw`<!doctype html>
   </body>
 </html>`;
 
+export const metadataBackedProfileHtml = String.raw`<!doctype html>
+<html lang="en">
+  <head>
+    <title>Taylor Morgan - Privacy engineer | LinkedIn</title>
+    <meta property="og:url" content="https://www.linkedin.com/in/taylor-metadata/" />
+    <meta property="og:title" content="Taylor Morgan - Privacy engineer | LinkedIn" />
+    <meta name="description" content="Privacy engineer building local-first export tools." />
+  </head>
+  <body>
+    <main class="scaffold-layout__main"></main>
+  </body>
+</html>`;
+
 export const multilingualProfileHtml = String.raw`<!doctype html>
 <html lang="es">
   <head>

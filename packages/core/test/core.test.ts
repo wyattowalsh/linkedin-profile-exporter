@@ -5,6 +5,7 @@ import {
   hiddenSectionProfileHtml,
   invalidProfileFixture,
   liveLikeProfileHtml,
+  metadataBackedProfileHtml,
   multilingualProfileHtml,
   sparseProfileHtml
 } from "@linkedin-profile-exporter/fixtures";
@@ -72,6 +73,13 @@ describe("extraction", () => {
       name: "Jordan Lee",
       headline: "Product operator building local export workflows",
       location: "Brooklyn, NY"
+    });
+
+    const metadataDocument = new DOMParser().parseFromString(metadataBackedProfileHtml, "text/html");
+    expect(detectLinkedInProfileReadiness(metadataDocument).state).toBe("ready");
+    expect(extractProfileFromHtml(metadataBackedProfileHtml).identity).toMatchObject({
+      name: "Taylor Morgan",
+      headline: "Privacy engineer"
     });
   });
 

@@ -1,16 +1,16 @@
 import { AlertCircle, Check, CheckCircle2, Clipboard, Download, FileText, RefreshCcw, Settings, Trash2, XCircle } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { browser } from "wxt/browser";
 import { detectLinkedInProfileReadiness } from "@linkedin-profile-exporter/core/extraction";
 import { EXPORT_FORMATS } from "@linkedin-profile-exporter/core/exporters";
 import type { ExportFormat, Profile } from "@linkedin-profile-exporter/core/schema";
-import { defaultSettings } from "@linkedin-profile-exporter/core/settings";
+import { defaultSettings, type Settings as ProfileSettings } from "@linkedin-profile-exporter/core/settings";
 import { Button } from "../../src/components/button";
 import { copyProfileExport, isTextExportFormat, profileToClipboardText } from "../../src/export-download";
 import type { RuntimeMessage, RuntimeResponse } from "../../src/messaging";
-import { clearExtractedState, loadExtractedProfile, loadSettings, saveExtractedProfile } from "../../src/storage";
+import { clearExtractedState, loadExtractedProfile, loadSettings, saveExtractedProfile, saveSettings } from "../../src/storage";
 import { useExtensionStore } from "../../src/state/store";
 
 export function PopupApp() {
@@ -23,6 +23,7 @@ export function PopupApp() {
     () => (settings.deliveryMode === "clipboard" ? selectedFormats.filter((format) => !isTextExportFormat(format)) : []),
     [selectedFormats, settings.deliveryMode]
   );
+  const copyableFormats = useMemo(() => selectedFormats.filter(isTextExportFormat), [selectedFormats]);
 
   useEffect(() => {
     void loadSettings()
@@ -54,13 +55,20 @@ export function PopupApp() {
       setProfile(response.profile);
       await saveExtractedProfile(response.profile, settings);
       toast.success(settings.privacy.persistExtractedData ? "Profile extracted and kept locally" : "Profile extracted locally");
-      if (settings.automationMode === "auto-export") await deliverAll(response.profile);
+      if (settings.automationMode === "auto-export") await deliverAllAs(settings.deliveryMode, response.profile);
     }
   }
 
-  async function deliver(format: ExportFormat, sourceProfile: Profile = profile!) {
+  async function updateDeliveryMode(deliveryMode: ProfileSettings["deliveryMode"]) {
+    const next = { ...settings, deliveryMode };
+    setSettings(next);
+    await saveSettings(next);
+    toast.success(deliveryMode === "clipboard" ? "Clipboard delivery selected" : "Download delivery selected");
+  }
+
+  async function deliver(format: ExportFormat, sourceProfile: Profile = profile!, deliveryMode = settings.deliveryMode) {
     if (!sourceProfile) return;
-    if (settings.deliveryMode === "clipboard") {
+    if (deliveryMode === "clipboard") {
       if (!isTextExportFormat(format)) {
         toast.error("XLSX is a binary workbook and must be downloaded");
         return;
@@ -86,9 +94,13 @@ export function PopupApp() {
     else toast.error(response.error);
   }
 
-  async function deliverAll(sourceProfile: Profile = profile!) {
-    const formats = settings.deliveryMode === "clipboard" ? selectedFormats.filter(isTextExportFormat) : selectedFormats;
-    await Promise.all(formats.map((format) => deliver(format, sourceProfile)));
+  async function deliverAllAs(deliveryMode: ProfileSettings["deliveryMode"], sourceProfile: Profile = profile!) {
+    const formats = deliveryMode === "clipboard" ? copyableFormats : selectedFormats;
+    if (!formats.length) {
+      toast.error("No copyable text formats are selected");
+      return;
+    }
+    await Promise.all(formats.map((format) => deliver(format, sourceProfile, deliveryMode)));
   }
 
   async function clearLocal() {
@@ -98,8 +110,11 @@ export function PopupApp() {
     toast.success("Local extracted profile cleared");
   }
 
+  async function openSettings() {
+    await browser.tabs.create({ url: browser.runtime.getURL("/options.html") });
+  }
+
   const status = statusMeta(readiness?.state);
-  const deliveryIcon = settings.deliveryMode === "clipboard" ? <Clipboard size={16} /> : <Download size={16} />;
 
   return (
     <main className="w-[420px] bg-[#f4f7f6] text-[#17201b]">
@@ -114,8 +129,9 @@ export function PopupApp() {
               <p className="mt-0.5 truncate text-xs text-[#5f6d66]">{profile?.identity.name ?? workflowLabel(settings.automationMode)}</p>
             </div>
           </div>
-          <Button className="size-9 shrink-0 px-0" variant="ghost" title="Open settings" onClick={() => browser.runtime.openOptionsPage()}>
+          <Button className="h-9 shrink-0 px-2" variant="ghost" title="Open settings" onClick={() => void openSettings()}>
             <Settings size={17} />
+            Settings
           </Button>
         </div>
       </header>
@@ -162,6 +178,20 @@ export function PopupApp() {
 
         <section className="rounded-md border border-[#d3ded9] bg-white p-3 shadow-sm">
           <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Settings</h2>
+            <Button className="h-8 px-2 text-xs" variant="ghost" title="Open full settings" onClick={() => void openSettings()}>
+              <Settings size={14} />
+              Full
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <DeliveryToggle active={settings.deliveryMode === "download"} icon={<Download size={15} />} label="Download" onClick={() => void updateDeliveryMode("download")} />
+            <DeliveryToggle active={settings.deliveryMode === "clipboard"} icon={<Clipboard size={15} />} label="Clipboard" onClick={() => void updateDeliveryMode("clipboard")} />
+          </div>
+        </section>
+
+        <section className="rounded-md border border-[#d3ded9] bg-white p-3 shadow-sm">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Formats</h2>
             <span className="text-xs text-[#6a766f]">
               {selectedFormats.length}/{EXPORT_FORMATS.length}
@@ -199,10 +229,16 @@ export function PopupApp() {
           <Button className="size-10 px-0" variant="secondary" title="Clear local profile" onClick={() => void clearLocal()}>
             <Trash2 size={16} />
           </Button>
-          <Button className="h-10 justify-center" disabled={!profile} onClick={() => void deliverAll()}>
-            {deliveryIcon}
-            {settings.deliveryMode === "clipboard" ? "Copy selected" : "Download selected"}
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button className="h-10 justify-center" variant="secondary" disabled={!profile || !copyableFormats.length} onClick={() => void deliverAllAs("clipboard")}>
+              <Clipboard size={16} />
+              Copy
+            </Button>
+            <Button className="h-10 justify-center" disabled={!profile} onClick={() => void deliverAllAs("download")}>
+              <Download size={16} />
+              Download
+            </Button>
+          </div>
         </footer>
       </div>
     </main>
@@ -226,6 +262,21 @@ async function sendToActiveTab(message: RuntimeMessage): Promise<RuntimeResponse
       error: "LinkedIn profile tab is open, but the exporter content script is not available yet. Reload the profile tab, then try again."
     };
   }
+}
+
+function DeliveryToggle({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      className={`inline-flex h-9 items-center justify-center gap-2 rounded-md border px-2 text-xs font-medium transition ${
+        active ? "border-[#1f6b54] bg-[#e8f5ef] text-[#174c3c]" : "border-[#d6e0dc] bg-[#f8faf9] text-[#46554e] hover:border-[#9bbdaf]"
+      }`}
+      type="button"
+      onClick={onClick}
+    >
+      {icon}
+      {label}
+    </button>
+  );
 }
 
 function statusMeta(state: "ready" | "unavailable" | "needs-action" | undefined) {

@@ -1,7 +1,10 @@
-import { denseProfileHtml, liveLikeProfileHtml } from "../../packages/fixtures/src";
+import { denseProfileHtml, liveLikeProfileHtml, metadataBackedProfileHtml } from "../../packages/fixtures/src";
 import { defaultSettings } from "../../packages/core/src/settings";
 import { expect, test } from "./extension-fixture";
 import type { Worker } from "@playwright/test";
+
+test.describe.configure({ mode: "serial" });
+test.setTimeout(60_000);
 
 test("extension pages render and options persist locally", async ({ page, extensionId }) => {
   await page.goto(`chrome-extension://${extensionId}/options.html`);
@@ -24,7 +27,10 @@ test("extension pages render and options persist locally", async ({ page, extens
 
   await page.goto(`chrome-extension://${extensionId}/popup.html`);
   await expect(page.getByRole("heading", { name: "Profile Exporter" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Copy|Download/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Clipboard" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy" })).toBeVisible();
+  await expect(page.locator("footer").getByRole("button", { name: "Download" })).toBeVisible();
 
   await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
   await expect(page.getByRole("heading", { name: "Review" })).toBeVisible();
@@ -99,6 +105,37 @@ test("content script waits for delayed live-style profile landmarks", async ({ c
     ok: true,
     profile: {
       identity: { name: "Jordan Lee", profileUrl: fixtureUrl },
+      exportMetadata: { formats: ["json", "markdown"] }
+    }
+  });
+});
+
+test("content script extracts a metadata-backed profile shell", async ({ context, extensionWorker }) => {
+  const fixtureUrl = "https://www.linkedin.com/in/e2e-metadata/";
+  const page = await context.newPage();
+  await page.route(fixtureUrl, (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: metadataBackedProfileHtml.replaceAll("https://www.linkedin.com/in/taylor-metadata/", fixtureUrl)
+    })
+  );
+  await page.goto(fixtureUrl);
+
+  const tabId = await tabIdForUrl(extensionWorker, fixtureUrl);
+  if (!tabId) throw new Error("metadata fixture tab was not visible to the extension");
+
+  const readiness = await sendTabMessage(extensionWorker, tabId, { type: "profile-readiness" });
+  expect(readiness).toMatchObject({ ok: true, readiness: { state: "ready" } });
+
+  const extraction = await sendTabMessage(extensionWorker, tabId, {
+    type: "extract-profile",
+    settings: { ...defaultSettings, automationMode: "review-before-export" as const, deliveryMode: "clipboard" as const }
+  });
+
+  expect(extraction).toMatchObject({
+    ok: true,
+    profile: {
+      identity: { name: "Taylor Morgan", headline: "Privacy engineer", profileUrl: fixtureUrl },
       exportMetadata: { formats: ["json", "markdown"] }
     }
   });

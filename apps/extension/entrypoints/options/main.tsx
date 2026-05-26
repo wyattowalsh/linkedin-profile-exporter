@@ -12,20 +12,24 @@ import { clearExtractedState, loadSettings, saveSettings } from "../../src/stora
 function OptionsApp() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const settingsRef = useRef<Settings>(defaultSettings);
+  const changedBeforeLoadRef = useRef(false);
 
   useEffect(() => {
     void loadSettings()
       .then((loaded) => {
+        if (changedBeforeLoadRef.current) return;
         settingsRef.current = loaded;
         setSettings(loaded);
       })
       .catch(() => {
+        if (changedBeforeLoadRef.current) return;
         settingsRef.current = defaultSettings;
         setSettings(defaultSettings);
       });
   }, []);
 
   async function save(next: Settings | ((current: Settings) => Settings)) {
+    changedBeforeLoadRef.current = true;
     const candidate = typeof next === "function" ? next(settingsRef.current) : next;
     const parsed = settingsSchema.parse(candidate);
     settingsRef.current = parsed;
