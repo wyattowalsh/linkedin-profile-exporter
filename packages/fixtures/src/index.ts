@@ -159,6 +159,111 @@ export const liveLikeProfileHtml = String.raw`<!doctype html>
   </body>
 </html>`;
 
+export const voyagerProfilePayload = {
+  data: {
+    "*profile": "urn:li:fs_profile:alex-rivera",
+    "*positionView": ["urn:li:fs_position:(alex-rivera,1)"],
+    "*educationView": ["urn:li:fs_education:(alex-rivera,1)"],
+    "*skillView": ["urn:li:fs_skill:(alex-rivera,typescript)"],
+    "*certificationView": ["urn:li:fs_certification:(alex-rivera,privacy)"],
+    "*projectView": ["urn:li:fs_project:(alex-rivera,workbench)"],
+    "*volunteerExperienceView": ["urn:li:fs_volunteer:(alex-rivera,mentor)"],
+    "*honorView": ["urn:li:fs_honor:(alex-rivera,award)"],
+    "*publicationView": ["urn:li:fs_publication:(alex-rivera,provenance)"],
+    "*languageView": ["urn:li:fs_language:(alex-rivera,en)"]
+  },
+  included: [
+    {
+      entityUrn: "urn:li:fs_profile:alex-rivera",
+      $type: "com.linkedin.voyager.identity.profile.Profile",
+      firstName: "Alex",
+      lastName: "Rivera",
+      headline: "Engineering leader building privacy-preserving data products",
+      summary: "I build local-first tools that turn messy browser workflows into structured, reviewable data.",
+      locationName: "New York, NY",
+      publicIdentifier: "alex-rivera-fixture",
+      defaultLocale: { language: "en", country: "US" }
+    },
+    {
+      entityUrn: "urn:li:fs_position:(alex-rivera,1)",
+      $type: "com.linkedin.voyager.identity.profile.Position",
+      title: "Director of Engineering",
+      companyName: "Northstar Labs",
+      locationName: "New York, NY",
+      description: "Led browser automation and data quality teams.",
+      timePeriod: { startDate: { year: 2021, month: 1 } }
+    },
+    {
+      entityUrn: "urn:li:fs_education:(alex-rivera,1)",
+      $type: "com.linkedin.voyager.identity.profile.Education",
+      schoolName: "Example University",
+      degreeName: "BS",
+      fieldOfStudy: "Computer Science",
+      timePeriod: { startDate: { year: 2011 }, endDate: { year: 2015 } },
+      activities: "Research assistant, accessibility lab"
+    },
+    {
+      entityUrn: "urn:li:fs_skill:(alex-rivera,typescript)",
+      $type: "com.linkedin.voyager.identity.profile.Skill",
+      name: "TypeScript"
+    },
+    {
+      entityUrn: "urn:li:fs_certification:(alex-rivera,privacy)",
+      $type: "com.linkedin.voyager.dash.identity.profile.Certification",
+      name: "Privacy Engineering Certificate",
+      authority: "Example Standards Institute",
+      timePeriod: { startDate: { year: 2024 } }
+    },
+    {
+      entityUrn: "urn:li:fs_project:(alex-rivera,workbench)",
+      $type: "com.linkedin.voyager.identity.profile.Project",
+      title: "Local Export Workbench",
+      description: "A fixture-backed browser export QA tool.",
+      url: "https://example.test/workbench"
+    },
+    {
+      entityUrn: "urn:li:fs_volunteer:(alex-rivera,mentor)",
+      $type: "com.linkedin.voyager.dash.identity.profile.VolunteerExperience",
+      role: "Mentor",
+      companyName: "Local Tech Fellows",
+      description: "Mentored early-career engineers."
+    },
+    {
+      entityUrn: "urn:li:fs_honor:(alex-rivera,award)",
+      $type: "com.linkedin.voyager.identity.profile.Honor",
+      title: "Data Quality Leadership Award",
+      issuer: "Northstar Labs",
+      issueDate: { year: 2023 }
+    },
+    {
+      entityUrn: "urn:li:fs_publication:(alex-rivera,provenance)",
+      $type: "com.linkedin.voyager.identity.profile.Publication",
+      name: "Practical Provenance for Browser Data",
+      publisher: "Example Journal",
+      date: { year: 2025 }
+    },
+    {
+      entityUrn: "urn:li:fs_language:(alex-rivera,en)",
+      $type: "com.linkedin.voyager.identity.profile.Language",
+      name: "English",
+      proficiency: "NATIVE_OR_BILINGUAL"
+    }
+  ]
+} as const;
+
+export const voyagerSupplementalSkillsPayload = {
+  data: {
+    "*elements": ["urn:li:fs_skill:(alex-rivera,browser-extensions)"]
+  },
+  included: [
+    {
+      entityUrn: "urn:li:fs_skill:(alex-rivera,browser-extensions)",
+      $type: "com.linkedin.voyager.identity.profile.Skill",
+      name: "Browser Extensions"
+    }
+  ]
+} as const;
+
 export const metadataBackedProfileHtml = String.raw`<!doctype html>
 <html lang="en">
   <head>

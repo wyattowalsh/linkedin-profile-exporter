@@ -1,4 +1,4 @@
-import { denseProfileHtml, liveLikeProfileHtml, metadataBackedProfileHtml } from "../../packages/fixtures/src";
+import { denseProfileHtml, liveLikeProfileHtml, metadataBackedProfileHtml, voyagerProfilePayload, voyagerSupplementalSkillsPayload } from "../../packages/fixtures/src";
 import { SCHEMA_VERSION, type Profile } from "../../packages/core/src/schema";
 import { defaultSettings } from "../../packages/core/src/settings";
 import { expect, test } from "./extension-fixture";
@@ -76,6 +76,54 @@ test("content script reports readiness and extracts a fixture profile", async ({
     profile: {
       identity: { name: "Alex Rivera", profileUrl: fixtureUrl },
       exportMetadata: { formats: ["json", "markdown"] }
+    }
+  });
+});
+
+test("content script prefers LinkedIn Voyager profile data when available", async ({ context, extensionWorker }) => {
+  const fixtureUrl = "https://www.linkedin.com/in/e2e-voyager/";
+  const page = await context.newPage();
+  await page.route(fixtureUrl, (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: `<!doctype html><html><head><meta property="og:url" content="${fixtureUrl}" /></head><body><main><h1 class="text-heading-xlarge">Alex Rivera</h1></main></body></html>`
+    })
+  );
+  await page.route("https://www.linkedin.com/voyager/api/identity/profiles/e2e-voyager/profileView", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(voyagerProfilePayload) })
+  );
+  await page.route("https://www.linkedin.com/voyager/api/identity/profiles/e2e-voyager/skillCategory", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(voyagerSupplementalSkillsPayload) })
+  );
+  await page.route("https://www.linkedin.com/voyager/api/identity/profiles/e2e-voyager/recommendations?q=received&recommendationStatuses=List(VISIBLE)", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ data: {}, included: [] }) })
+  );
+  await context.addCookies([
+    {
+      domain: ".linkedin.com",
+      name: "JSESSIONID",
+      path: "/",
+      value: "ajax:fixture"
+    }
+  ]);
+  await page.goto(fixtureUrl);
+  await expect(page.getByRole("heading", { name: "Alex Rivera" })).toBeVisible();
+
+  const tabId = await tabIdForUrl(extensionWorker, fixtureUrl);
+  if (!tabId) throw new Error("voyager fixture tab was not visible to the extension");
+
+  const extraction = await sendTabMessage(extensionWorker, tabId, {
+    type: "extract-profile",
+    settings: { ...defaultSettings, automationMode: "review-before-export" as const }
+  });
+
+  expect(extraction).toMatchObject({
+    ok: true,
+    profile: {
+      identity: { about: "I build local-first tools that turn messy browser workflows into structured, reviewable data." },
+      work: [{ title: "Director of Engineering", company: "Northstar Labs" }],
+      education: [{ school: "Example University" }],
+      skills: [{ name: "TypeScript" }, { name: "Browser Extensions" }]
     }
   });
 });

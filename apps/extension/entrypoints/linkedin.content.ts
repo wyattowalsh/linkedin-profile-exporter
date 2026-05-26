@@ -2,6 +2,8 @@ import {
   detectLinkedInProfileReadiness,
   extractProfileFromDocument
 } from "@linkedin-profile-exporter/core/extraction";
+import { extractProfileFromVoyagerPayload } from "@linkedin-profile-exporter/core/linkedin-voyager";
+import type { Profile } from "@linkedin-profile-exporter/core/schema";
 import { applyProfileSettings, type Settings } from "@linkedin-profile-exporter/core/settings";
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
@@ -20,7 +22,7 @@ export default defineContentScript({
           .then(assertProfileReady)
           .then(() => prepareAccessibleSections(message.settings))
           .then(assertProfileReady)
-          .then(() => extractProfileFromDocument(document, { settings: message.settings }))
+          .then(() => extractProfile(message.settings))
           .then((profile) => ({ ok: true as const, profile: applyProfileSettings(profile, message.settings) }))
           .catch((error: unknown) => ({ ok: false, error: error instanceof Error ? error.message : String(error) }));
       }
@@ -28,6 +30,66 @@ export default defineContentScript({
     });
   }
 });
+
+async function extractProfile(settings: Settings): Promise<Profile> {
+  const voyager = await extractViaVoyagerApi();
+  if (voyager) return voyager;
+  const profile = extractProfileFromDocument(document, { settings });
+  profile.diagnostics.push({
+    code: "linkedin-voyager.unavailable",
+    level: "warning",
+    message: "LinkedIn internal profile JSON was unavailable, so DOM extraction was used.",
+    source: "linkedin-voyager"
+  });
+  return profile;
+}
+
+async function extractViaVoyagerApi(): Promise<Profile | null> {
+  const profileId = profileIdFromLocation();
+  if (!profileId) return null;
+
+  try {
+    const profilePayload = await voyagerFetch(`/identity/profiles/${encodeURIComponent(profileId)}/profileView`);
+    const supplementalPayloads = await Promise.all([
+      voyagerFetchOptional(`/identity/profiles/${encodeURIComponent(profileId)}/skillCategory`),
+      voyagerFetchOptional(`/identity/profiles/${encodeURIComponent(profileId)}/recommendations?q=received&recommendationStatuses=List(VISIBLE)`)
+    ]);
+    return extractProfileFromVoyagerPayload(profilePayload, {
+      source: "linkedin-voyager.profileView",
+      supplementalPayloads: supplementalPayloads.filter((payload): payload is unknown => Boolean(payload)),
+      url: document.location.href
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function voyagerFetchOptional(path: string): Promise<unknown | null> {
+  try {
+    return await voyagerFetch(path);
+  } catch {
+    return null;
+  }
+}
+
+async function voyagerFetch(path: string): Promise<unknown> {
+  const csrfToken = csrfTokenFromCookie();
+  if (!csrfToken) throw new Error("LinkedIn session CSRF token is unavailable.");
+
+  const url = path.startsWith("https://") ? path : `https://www.linkedin.com/voyager/api${path}`;
+  const response = await fetch(url, {
+    credentials: "include",
+    headers: {
+      accept: "application/vnd.linkedin.normalized+json+2.1",
+      "csrf-token": csrfToken
+    },
+    method: "GET",
+    mode: "cors",
+    referrer: document.location.href
+  });
+  if (!response.ok) throw new Error(`LinkedIn internal API returned ${response.status}.`);
+  return response.json();
+}
 
 async function prepareAccessibleSections(settings: Settings): Promise<void> {
   if (settings.automationMode === "manual") return;
@@ -48,6 +110,19 @@ async function prepareAccessibleSections(settings: Settings): Promise<void> {
     control.click();
     await delay(50);
   }
+}
+
+function csrfTokenFromCookie(): string | undefined {
+  return document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("JSESSIONID="))
+    ?.slice("JSESSIONID=".length)
+    .replace(/^"|"$/g, "");
+}
+
+function profileIdFromLocation(): string | undefined {
+  return document.location.href.match(/linkedin\.com\/in\/([^/?#]+)/i)?.[1];
 }
 
 function delay(ms: number): Promise<void> {

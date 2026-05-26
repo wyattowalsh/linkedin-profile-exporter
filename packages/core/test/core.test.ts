@@ -7,7 +7,9 @@ import {
   liveLikeProfileHtml,
   metadataBackedProfileHtml,
   multilingualProfileHtml,
-  sparseProfileHtml
+  sparseProfileHtml,
+  voyagerProfilePayload,
+  voyagerSupplementalSkillsPayload
 } from "@linkedin-profile-exporter/fixtures";
 import {
   EXPORT_FORMATS,
@@ -23,6 +25,7 @@ import {
   exportXml,
   exportYamlResume,
   extractProfileFromHtml,
+  extractProfileFromVoyagerPayload,
   profileSchema,
   settingsSchema
 } from "../src";
@@ -106,6 +109,34 @@ describe("extraction", () => {
     const profile = extractProfileFromHtml(html, { now: "2026-05-25T12:00:00.000Z" });
     expect(profile.identity.name).toBe("Alex Rivera");
     expect(profile.diagnostics.some((diagnostic) => diagnostic.code === "client-state.invalid-shape")).toBe(true);
+  });
+
+  it("extracts real-profile sections from LinkedIn Voyager payloads", () => {
+    const profile = extractProfileFromVoyagerPayload(voyagerProfilePayload, {
+      now: "2026-05-25T12:00:00.000Z",
+      supplementalPayloads: [voyagerSupplementalSkillsPayload],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(profile.identity).toMatchObject({
+      name: "Alex Rivera",
+      headline: "Engineering leader building privacy-preserving data products",
+      about: "I build local-first tools that turn messy browser workflows into structured, reviewable data.",
+      location: "New York, NY"
+    });
+    expect(profile.work[0]).toMatchObject({
+      title: "Director of Engineering",
+      company: "Northstar Labs",
+      dates: "2021-01 - Present"
+    });
+    expect(profile.education[0]).toMatchObject({
+      school: "Example University",
+      degree: "BS",
+      field: "Computer Science",
+      dates: "2011 - 2015"
+    });
+    expect(profile.skills.map((skill) => skill.name)).toEqual(["TypeScript", "Browser Extensions"]);
+    expect(profile.projects[0]?.name).toBe("Local Export Workbench");
+    expect(profile.diagnostics.some((diagnostic) => diagnostic.code === "linkedin-voyager.parsed")).toBe(true);
   });
 
   it("applies data scope and diagnostic settings without dropping required identity", () => {

@@ -8,6 +8,7 @@
     "./schema": "./src/schema.ts",
     "./settings": "./src/settings.ts",
     "./extraction": "./src/extraction.ts",
+    "./linkedin-voyager": "./src/linkedin-voyager.ts",
     "./exporters": "./src/exporters.ts"
   },
   "scripts": {
