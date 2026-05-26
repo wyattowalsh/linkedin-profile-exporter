@@ -1,0 +1,26 @@
+{
+  "name": "@linkedin-profile-exporter/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./settings": "./src/settings.ts",
+    "./extraction": "./src/extraction.ts",
+    "./exporters": "./src/exporters.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --pretty false",
+    "test": "vitest run --root ../.. test/core.test.ts"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0",
+    "fast-xml-parser": "5.8.0",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@linkedin-profile-exporter/fixtures": "workspace:*"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@linkedin-profile-exporter/web-store",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "pnpm --dir ../.. check:store",
+    "typecheck": "tsc -p tsconfig.json --pretty false"
+  }
+}

@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-json
+      - id: check-yaml
+  - repo: local
+    hooks:
+      - id: openspec
+        name: OpenSpec validation
+        entry: pnpm openspec
+        language: system
+        pass_filenames: false
+      - id: quick
+        name: Local quick validation
+        entry: pnpm quick
+        language: system
+        pass_filenames: false

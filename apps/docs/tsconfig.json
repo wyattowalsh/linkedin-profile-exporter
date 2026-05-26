@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "../../.tsbuild/apps/docs",
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "paths": {
+      "collections/*": ["./.source/*"]
+    }
+  },
+  "include": ["app/**/*.ts", "app/**/*.tsx", "lib/**/*.ts", "scripts/**/*.ts", "source.config.ts", "types/**/*.d.ts", ".source/**/*.ts"]
+}

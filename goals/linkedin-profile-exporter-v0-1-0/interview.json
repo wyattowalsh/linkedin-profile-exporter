@@ -1,0 +1,217 @@
+{
+  "stage": "interview",
+  "title": "LinkedIn Profile Exporter v0.1.0",
+  "goalSlug": "linkedin-profile-exporter-v0-1-0",
+  "questions": [
+    {
+      "id": "release_boundary",
+      "prompt": "What should v0.1.0 be expected to deliver?",
+      "description": "The request describes a broad product surface. This choice sets the execution boundary for the first version without weakening the long-term architecture.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Deliver a spec-first, working foundation: a WXT extension that works in primary desktop Chromium/Firefox-style browsers, a bookmarklet exporter, shared extraction/export core, rich settings UI, docs, CI, pre-commit, Justfile, design system, assets, and source-managed store listing materials. Safari/mobile/store-submission automation should be designed into the architecture and documented, with implementation included where WXT and local tooling make it feasible for v0.1.0.",
+      "recommendedOptionIds": [
+        "working_foundation"
+      ],
+      "options": [
+        {
+          "id": "working_foundation",
+          "label": "Working foundation"
+        },
+        {
+          "id": "all_targets_complete",
+          "label": "All targets complete"
+        },
+        {
+          "id": "spec_first_scaffold",
+          "label": "Spec-first scaffold"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "data_capture_policy",
+      "prompt": "How should the exporter interpret \"all available LinkedIn profile data\"?",
+      "description": "This controls whether the extension only reads the current page or also attempts deeper browser/network extraction.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Extract everything available from the current profile page and its rendered client state: visible DOM, structured page data, lazy-loaded sections after user-approved automation, and locally observable page metadata. Do not require LinkedIn credentials, scrape private APIs, bypass access controls, or persist secrets.",
+      "recommendedOptionIds": [
+        "page_and_state"
+      ],
+      "options": [
+        {
+          "id": "page_only",
+          "label": "Visible page only"
+        },
+        {
+          "id": "page_and_state",
+          "label": "Page and state"
+        },
+        {
+          "id": "network_assisted",
+          "label": "Network assisted"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "canonical_data_model",
+      "prompt": "What should be the canonical profile data model?",
+      "description": "The exporters can project into several formats, but one internal schema should drive validation and tests.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Define a project-owned canonical schema for LinkedIn profile exports, validated with Zod and versioned as a public asset format. JSON Resume and YAML Resume become first-class export projections that preserve as much canonical detail as their formats allow.",
+      "recommendedOptionIds": [
+        "canonical_schema"
+      ],
+      "options": [
+        {
+          "id": "canonical_schema",
+          "label": "Project schema"
+        },
+        {
+          "id": "jsonresume_first",
+          "label": "JSON Resume first"
+        },
+        {
+          "id": "yamlresume_first",
+          "label": "YAML Resume first"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "reference_implementation_use",
+      "prompt": "How should the old working exporter and local build be used?",
+      "description": "This determines whether the prior project is treated as a behavioral reference, source material, or just historical context.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Use `joshuatz/linkedin-to-jsonresume` and `/Users/ww/Downloads/build_3.2.3/` as behavioral and compatibility references: inspect extraction coverage, output shape, and manifest/build issues, then reimplement in the new stack unless direct reuse is clearly license-compatible and technically cleaner.",
+      "recommendedOptionIds": [
+        "behavior_reference"
+      ],
+      "options": [
+        {
+          "id": "behavior_reference",
+          "label": "Behavior reference"
+        },
+        {
+          "id": "port_reuse",
+          "label": "Port reusable code"
+        },
+        {
+          "id": "fresh_only",
+          "label": "Fresh implementation"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "automation_and_ai",
+      "prompt": "How automated and intelligent should the extraction workflow be by default?",
+      "description": "This sets the product behavior for scrolling, section expansion, data cleanup, and any optional AI-style enrichment.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Default to deterministic, local automation: one-click scan, guided section expansion/scrolling, confidence markers, review-before-export, customizable field mapping, and local cleanup heuristics. Optional AI enrichment can be designed as a disabled-by-default extension point, not a required hosted service.",
+      "recommendedOptionIds": [
+        "one_click_scan",
+        "review_before_export",
+        "optional_ai_extension"
+      ],
+      "options": [
+        {
+          "id": "one_click_scan",
+          "label": "One-click scan"
+        },
+        {
+          "id": "review_before_export",
+          "label": "Review before export"
+        },
+        {
+          "id": "auto_download",
+          "label": "Auto-download"
+        },
+        {
+          "id": "optional_ai_extension",
+          "label": "Optional AI extension"
+        },
+        {
+          "id": "cloud_ai_default",
+          "label": "Cloud AI default"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "privacy_storage",
+      "prompt": "What privacy and storage posture should the product enforce?",
+      "description": "Exported LinkedIn profiles can contain personal data. This choice affects settings, persistence, docs, and tests.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Keep data local-first and explicit: no analytics, no background upload, no remote sync, no secret persistence, clear preview/delete controls, browser-local settings only, and export files created only by user action or an enabled local automation setting.",
+      "recommendedOptionIds": [
+        "local_explicit"
+      ],
+      "options": [
+        {
+          "id": "local_explicit",
+          "label": "Local and explicit"
+        },
+        {
+          "id": "local_autosave",
+          "label": "Local autosave"
+        },
+        {
+          "id": "sync_ready",
+          "label": "Sync-ready"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "openspec_integration",
+      "prompt": "How tightly should OpenSpec drive the project?",
+      "description": "The request asks for latest advanced OpenSpec paradigms. This choice defines whether OpenSpec is documentation, planning, or an enforcement layer.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Use OpenSpec as a contract-first enforcement layer: specify public asset formats, extraction behavior, export behavior, extension/settings workflows, docs generation expectations, validation commands, and release/store surfaces before implementation; keep implementation, tests, docs, and goal facts traceable to the accepted specs.",
+      "recommendedOptionIds": [
+        "contract_enforced"
+      ],
+      "options": [
+        {
+          "id": "contract_enforced",
+          "label": "Contract enforced"
+        },
+        {
+          "id": "planning_only",
+          "label": "Planning only"
+        },
+        {
+          "id": "docs_only",
+          "label": "Docs only"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "web_store_management",
+      "prompt": "What should web store posting management include for v0.1.0?",
+      "description": "Actual store submission usually requires credentials and review flows. Source-managed listing content and screenshots can still be built without live submission.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Create source-managed listing copy, metadata, screenshot plans/assets, per-store packaging notes, and validation checklists for Chrome Web Store, Firefox Add-ons, Edge Add-ons, and Safari/App Store pathways. Do not perform credentialed submissions in v0.1.0 unless requested later.",
+      "recommendedOptionIds": [
+        "managed_assets"
+      ],
+      "options": [
+        {
+          "id": "managed_assets",
+          "label": "Managed assets"
+        },
+        {
+          "id": "submission_automation",
+          "label": "Submission automation"
+        },
+        {
+          "id": "docs_only",
+          "label": "Docs only"
+        }
+      ],
+      "required": true
+    }
+  ]
+}

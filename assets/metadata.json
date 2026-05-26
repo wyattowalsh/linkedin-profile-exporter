@@ -1,0 +1,16 @@
+{
+  "icon": {
+    "path": "assets/icon/linkedin-profile-exporter-icon.svg",
+    "width": 512,
+    "height": 512,
+    "transparent": true,
+    "noTextManualReview": true
+  },
+  "social": [
+    {
+      "path": "assets/social/github-preview.svg",
+      "width": 1280,
+      "height": 640
+    }
+  ]
+}

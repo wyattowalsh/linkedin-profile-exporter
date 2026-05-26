@@ -1,0 +1,51 @@
+{
+  "name": "linkedin-profile-exporter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-explicit LinkedIn profile export extension, bookmarklet, schema, exporters, docs, and store materials.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "8.5.10",
+      "uuid": "11.1.1"
+    }
+  },
+  "scripts": {
+    "setup": "pnpm install",
+    "openspec": "npx -y @fission-ai/openspec@latest validate --all --json",
+    "lint": "eslint . --max-warnings 0 && tsx scripts/check/no-disallowed-patterns.ts && pnpm check:assets && pnpm check:store && pnpm check:docs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "test:e2e": "pnpm --filter @linkedin-profile-exporter/extension build:chrome && playwright test",
+    "test:watch": "vitest",
+    "build": "pnpm --filter @linkedin-profile-exporter/bookmarklet build && pnpm --filter @linkedin-profile-exporter/docs build",
+    "build:extension": "pnpm --filter @linkedin-profile-exporter/extension build:all",
+    "check:assets": "tsx scripts/check/assets.ts",
+    "check:docs": "tsx scripts/check/docs.ts",
+    "check:manifests": "tsx scripts/check/manifests.ts",
+    "check:store": "tsx scripts/check/store.ts",
+    "quick": "pnpm run openspec && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "ci": "pnpm run quick && pnpm run build:extension && pnpm run check:manifests && pnpm run test:e2e && git diff --check"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "eslint": "10.4.0",
+    "jsdom": "29.1.1",
+    "prettier": "3.8.3",
+    "tsx": "4.22.3",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.59.4",
+    "vite": "8.0.14",
+    "vitest": "4.1.7"
+  }
+}

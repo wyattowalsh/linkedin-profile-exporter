@@ -1,0 +1,24 @@
+{
+  "name": "@linkedin-profile-exporter/docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "pnpm run build:artifacts && pnpm run build:site",
+    "build:artifacts": "tsx scripts/build-docs.ts",
+    "build:site": "next build --webpack",
+    "typecheck": "tsc -p tsconfig.json --pretty false"
+  },
+  "dependencies": {
+    "fumadocs-core": "16.9.1",
+    "fumadocs-mdx": "15.0.8",
+    "fumadocs-ui": "16.9.1",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@types/mdx": "2.0.13"
+  }
+}

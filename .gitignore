@@ -128,3 +128,24 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Package manager
+pnpm-lock.yaml.tmp
+
+# Browser extension and docs outputs
+.wxt/
+.source/
+.output/
+apps/extension/.output/
+apps/extension/.wxt/
+apps/docs/.next/
+apps/docs/.source/
+packages/bookmarklet/dist/
+
+# Local generated validation reports
+playwright-report/
+test-results/
+.vitest/
+
+# macOS
+.DS_Store

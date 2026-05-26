@@ -1,0 +1,6 @@
+{
+  "target": "edge",
+  "status": "source-managed",
+  "categories": ["productivity", "developer-tools"],
+  "submission": "not-in-v0.1.0"
+}

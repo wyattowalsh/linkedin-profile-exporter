@@ -1,0 +1,6 @@
+{
+  "target": "mobile-chrome",
+  "status": "packaging-path",
+  "categories": ["productivity", "developer-tools"],
+  "submission": "not-in-v0.1.0"
+}

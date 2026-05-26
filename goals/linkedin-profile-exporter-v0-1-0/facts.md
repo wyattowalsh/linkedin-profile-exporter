@@ -1,0 +1,45 @@
+# Facts
+
+- v0.1.0 is planned as a complete product release target, not only a scaffold or prototype.
+- The repository contains OpenSpec contracts for extraction behavior, the canonical profile schema, export formats, browser extension workflows, bookmarklet behavior, settings behavior, documentation, release packaging, and web-store materials.
+- The repository provides a documented command that validates the OpenSpec state before implementation, testing, documentation, and release work are considered complete.
+- The browser extension suite is implemented with WXT, React, TypeScript, Tailwind CSS v4, shadcn-ui, Zod, Zustand, Sonner, Motion, Monaspice font variants, Vitest, Playwright, and TanStack React Query.
+- The extension build system produces browser-specific extension artifacts for Chromium/Chrome, Edge, Firefox, Safari, mobile Safari, and mobile Chrome targets or their documented platform-specific packaging paths.
+- Each extension artifact has a valid manifest, required permissions, content script registration, extension UI entrypoints, icons, and store-ready metadata for its target browser.
+- The extension detects when the current browser tab is a LinkedIn profile page and shows a clear ready, unavailable, or needs-action state.
+- The extraction engine reads all accessible profile data from the current LinkedIn profile page, including visible DOM content, rendered client state, page metadata, and lazy-loaded sections exposed by the page.
+- The extraction workflow can automatically scroll, expand profile sections, click available show-more controls, and rescan until the configured completion criteria are met.
+- Automation settings let the user choose between review-before-export, automatic download, and less automated/manual extraction modes.
+- The extractor captures profile identity fields such as name, headline, location, profile URL, about text, contact links when accessible, and profile imagery metadata when accessible.
+- The extractor captures work history including company, title, location, dates, descriptions, nested roles, and source provenance when those fields are accessible on the page.
+- The extractor captures education entries including school, degree, field, dates, descriptions, activities, and source provenance when those fields are accessible on the page.
+- The extractor captures skills, licenses, certifications, projects, publications, volunteering, honors, awards, languages, courses, recommendations, featured items, organizations, and interests when those sections are accessible on the page.
+- Every extracted field can carry source provenance and confidence information so users can review where important values came from.
+- The project defines a versioned canonical profile export schema that synthesizes JSON Resume, YAML Resume, LinkedIn-specific fields, and additional useful profile fields.
+- The canonical schema is implemented with Zod and has tests that accept valid profile fixtures and reject invalid profile fixtures.
+- The JSON exporter can emit canonical JSON and an improved JSON Resume-compatible projection.
+- The YAML exporter can emit an improved YAML Resume-compatible projection from the canonical profile schema.
+- The CSV exporter can emit tabular profile data, and multi-table tabular output should be delivered as an XLSX workbook rather than separate CSV table files.
+- The Markdown exporter can emit compact profile data for LLM context, including structured frontmatter metadata, separators, and a readable resume/profile body.
+- The XML exporter can emit schema-valid XML from the canonical profile schema.
+- The extension UI lets users run extraction, inspect the extracted profile, choose export formats, configure automation, and download exported files.
+- The settings panel is modern, sleek, responsive, feature-rich, and built from the shared React, shadcn-ui, Tailwind CSS v4, Zustand, Sonner, Motion, and TanStack Query stack.
+- Settings include controls for data scope, automation behavior, output formats, filename templates, privacy behavior, auto-download behavior, and diagnostics.
+- The product stores settings locally and does not upload extracted profile data, send analytics, require LinkedIn credentials, persist secrets, or use a remote service by default.
+- The product includes clear local controls to preview extracted data, delete extracted data from local state, and avoid exporting until the user confirms or enables auto-download.
+- The bookmarklet exporter can run from a LinkedIn profile page, use the shared extraction and export logic where possible, and provide a low-friction export path outside the extension.
+- The old `joshuatz/linkedin-to-jsonresume` project and `/Users/ww/Downloads/build_3.2.3/` are inspected as behavioral references for extraction coverage, output shape, and the prior manifest issue.
+- The test suite includes Vitest coverage for schema validation, extraction fixtures, exporters, settings logic, and OpenSpec-driven contracts.
+- The test suite includes Playwright coverage for extension flows, settings flows, bookmarklet flows, export downloads, and representative LinkedIn-profile fixture pages.
+- CI does not depend on a live LinkedIn account; automated tests use fixtures, recorded static pages, or local harness pages for deterministic validation.
+- The repository includes GitHub Actions CI/CD for install, lint, typecheck, tests, extension builds, docs builds, asset checks, and release-package checks.
+- The repository includes pre-commit configuration for deterministic local quality gates.
+- The repository includes a Justfile with commands for setup, development, OpenSpec validation, linting, typechecking, testing, building, docs, assets, and release packaging.
+- The repository documents conventional and atomic commit expectations without creating commits unless the user explicitly asks for them.
+- The repository includes a fully configured Fumadocs documentation site using current shadcn-ui and Tailwind CSS conventions, with SEO metadata, OpenGraph metadata, sitemap support, and product documentation.
+- The repository includes `DESIGN.md` describing the design system, UI patterns, typography, color, iconography, motion, accessibility expectations, and product tone.
+- The project includes a sleek, modern, simple, elegant, iconic generated project icon with transparent background and no text, letters, font, or words in the final icon image.
+- The project includes generated social preview imagery suitable for GitHub social preview and social-card usage.
+- The repository includes source-managed web-store listing copy, metadata, screenshot plans, image assets, and release checklists for each target web store.
+- The web-store management workflow does not perform credentialed store submissions in v0.1.0 unless the user separately requests that action.
+- Public asset formats and generated artifacts are documented, and nested `AGENTS.md` files provide agent instructions throughout relevant codebase areas.

@@ -1,0 +1,17 @@
+{
+  "name": "@linkedin-profile-exporter/bookmarklet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsx src/build.ts",
+    "typecheck": "tsc -p tsconfig.json --pretty false",
+    "test": "vitest run --root ../.. test/bookmarklet.test.ts"
+  },
+  "dependencies": {
+    "@linkedin-profile-exporter/core": "workspace:*"
+  }
+}

@@ -1,0 +1,59 @@
+name: product-release-change
+version: 1
+description: Product-release workflow covering specs, affected surfaces, validation, tasks, and implementation readiness.
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Product release motivation, scope, capabilities, and impact.
+    template: proposal.md
+    instruction: |
+      Capture why the release is needed, what capabilities it adds, what is out of scope, and which public contracts are affected.
+    requires: []
+  - id: affected-surfaces
+    generates: affected-surfaces.md
+    description: Source, generated, docs, asset, CI, and downstream surfaces touched by the release.
+    template: affected-surfaces.md
+    instruction: |
+      Enumerate all public surfaces and validation owners affected by the release.
+    requires:
+      - proposal
+  - id: specs
+    generates: specs/**/*.md
+    description: OpenSpec capability requirements for the product release.
+    template: spec.md
+    instruction: |
+      Define testable requirements using ADDED/MODIFIED/REMOVED sections, SHALL/MUST language, and scenarios.
+    requires:
+      - proposal
+  - id: design
+    generates: design.md
+    description: Architecture and implementation design.
+    template: design.md
+    instruction: |
+      Explain implementation decisions, alternatives, risks, and rollout/rollback constraints.
+    requires:
+      - proposal
+      - specs
+      - affected-surfaces
+  - id: validation-matrix
+    generates: validation-matrix.md
+    description: Validation commands mapped to affected surfaces.
+    template: validation-matrix.md
+    instruction: |
+      Map each public surface to commands, expected results, and known local blockers.
+    requires:
+      - affected-surfaces
+      - design
+  - id: tasks
+    generates: tasks.md
+    description: Dependency-ordered implementation checklist.
+    template: tasks.md
+    instruction: |
+      Provide small, verifiable tasks in dependency order and mark parallelizable lanes with [P].
+    requires:
+      - design
+      - validation-matrix
+apply:
+  requires:
+    - tasks
+  tracks: tasks.md

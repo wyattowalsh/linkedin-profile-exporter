@@ -1,0 +1,40 @@
+{
+  "name": "@linkedin-profile-exporter/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "wxt": "wxt",
+    "prepare": "wxt prepare",
+    "test": "vitest run --root ../.. src/state/store.test.ts",
+    "build": "wxt build -b chrome",
+    "build:chrome": "wxt build -b chrome",
+    "build:edge": "wxt build -b edge",
+    "build:firefox": "wxt build -b firefox",
+    "build:safari": "wxt build -b safari",
+    "build:all": "pnpm build:chrome && pnpm build:edge && pnpm build:firefox && pnpm build:safari",
+    "zip": "wxt zip",
+    "zip:edge": "wxt zip -b edge",
+    "zip:firefox": "wxt zip -b firefox",
+    "typecheck": "tsc -p tsconfig.json --pretty false"
+  },
+  "dependencies": {
+    "@linkedin-profile-exporter/core": "workspace:*",
+    "@linkedin-profile-exporter/fixtures": "workspace:*",
+    "@tailwindcss/vite": "4.3.0",
+    "@tanstack/react-query": "5.100.14",
+    "@vitejs/plugin-react": "6.0.2",
+    "@wxt-dev/module-react": "1.2.2",
+    "clsx": "2.1.1",
+    "lucide-react": "1.16.0",
+    "motion": "12.40.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "sonner": "2.0.7",
+    "tailwind-merge": "3.6.0",
+    "tailwindcss": "4.3.0",
+    "wxt": "0.20.26",
+    "zustand": "5.0.13"
+  }
+}

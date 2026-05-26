@@ -1,0 +1,13 @@
+{
+  "$schema": "https://fumadocs.dev/schema.json",
+  "root": "content/docs",
+  "title": "LinkedIn Profile Exporter",
+  "description": "Local-explicit browser extension and bookmarklet documentation.",
+  "llms": {
+    "enabled": true,
+    "output": "dist/llms.txt"
+  },
+  "search": {
+    "provider": "local"
+  }
+}

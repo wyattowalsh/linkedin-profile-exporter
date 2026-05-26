@@ -1,0 +1,308 @@
+{
+  "stage": "facts-meta",
+  "title": "LinkedIn Profile Exporter v0.1.0",
+  "goalSlug": "linkedin-profile-exporter-v0-1-0",
+  "facts": [
+    {
+      "id": "fact-001",
+      "text": "v0.1.0 is planned as a complete product release target, not only a scaffold or prototype.",
+      "comment": null,
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "fact-002",
+      "text": "The repository contains OpenSpec contracts for extraction behavior, the canonical profile schema, export formats, browser extension workflows, bookmarklet behavior, settings behavior, documentation, release packaging, and web-store materials.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-003",
+      "text": "The repository provides a documented command that validates the OpenSpec state before implementation, testing, documentation, and release work are considered complete.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-004",
+      "text": "The browser extension suite is implemented with WXT, React, TypeScript, Tailwind CSS v4, shadcn-ui, Zod, Zustand, Sonner, Motion, Monaspice font variants, Vitest, Playwright, and TanStack React Query.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-005",
+      "text": "The extension build system produces browser-specific extension artifacts for Chromium/Chrome, Edge, Firefox, Safari, mobile Safari, and mobile Chrome targets or their documented platform-specific packaging paths.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-006",
+      "text": "Each extension artifact has a valid manifest, required permissions, content script registration, extension UI entrypoints, icons, and store-ready metadata for its target browser.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-007",
+      "text": "The extension detects when the current browser tab is a LinkedIn profile page and shows a clear ready, unavailable, or needs-action state.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-008",
+      "text": "The extraction engine reads all accessible profile data from the current LinkedIn profile page, including visible DOM content, rendered client state, page metadata, and lazy-loaded sections exposed by the page.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-009",
+      "text": "The extraction workflow can automatically scroll, expand profile sections, click available show-more controls, and rescan until the configured completion criteria are met.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-010",
+      "text": "Automation settings let the user choose between review-before-export, automatic download, and less automated/manual extraction modes.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-011",
+      "text": "The extractor captures profile identity fields such as name, headline, location, profile URL, about text, contact links when accessible, and profile imagery metadata when accessible.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-012",
+      "text": "The extractor captures work history including company, title, location, dates, descriptions, nested roles, and source provenance when those fields are accessible on the page.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-013",
+      "text": "The extractor captures education entries including school, degree, field, dates, descriptions, activities, and source provenance when those fields are accessible on the page.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-014",
+      "text": "The extractor captures skills, licenses, certifications, projects, publications, volunteering, honors, awards, languages, courses, recommendations, featured items, organizations, and interests when those sections are accessible on the page.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-015",
+      "text": "Every extracted field can carry source provenance and confidence information so users can review where important values came from.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-016",
+      "text": "The project defines a versioned canonical profile export schema that synthesizes JSON Resume, YAML Resume, LinkedIn-specific fields, and additional useful profile fields.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-017",
+      "text": "The canonical schema is implemented with Zod and has tests that accept valid profile fixtures and reject invalid profile fixtures.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-018",
+      "text": "The JSON exporter can emit canonical JSON and an improved JSON Resume-compatible projection.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-019",
+      "text": "The YAML exporter can emit an improved YAML Resume-compatible projection from the canonical profile schema.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-020",
+      "text": "The CSV exporter can emit tabular profile data with separate logical tables for profile basics, experience, education, skills, and other repeatable sections.",
+      "comment": "instead of separate tables, just have it as xlsx",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-021",
+      "text": "The Markdown exporter can emit a readable profile or resume document from the canonical profile schema.",
+      "comment": "it should be like profile data in markdown for use as LLM context sorta markdown (so structured frontmatter meta, separators, compact, etc)",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-023",
+      "text": "The XML exporter can emit schema-valid XML from the canonical profile schema.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-024",
+      "text": "The extension UI lets users run extraction, inspect the extracted profile, choose export formats, configure automation, and download exported files.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-025",
+      "text": "The settings panel is modern, sleek, responsive, feature-rich, and built from the shared React, shadcn-ui, Tailwind CSS v4, Zustand, Sonner, Motion, and TanStack Query stack.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-026",
+      "text": "Settings include controls for data scope, automation behavior, output formats, filename templates, privacy behavior, auto-download behavior, and diagnostics.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-027",
+      "text": "The product stores settings locally and does not upload extracted profile data, send analytics, require LinkedIn credentials, persist secrets, or use a remote service by default.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-028",
+      "text": "The product includes clear local controls to preview extracted data, delete extracted data from local state, and avoid exporting until the user confirms or enables auto-download.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-029",
+      "text": "The bookmarklet exporter can run from a LinkedIn profile page, use the shared extraction and export logic where possible, and provide a low-friction export path outside the extension.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-030",
+      "text": "The old `joshuatz/linkedin-to-jsonresume` project and `/Users/ww/Downloads/build_3.2.3/` are inspected as behavioral references for extraction coverage, output shape, and the prior manifest issue.",
+      "comment": null,
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "fact-031",
+      "text": "The test suite includes Vitest coverage for schema validation, extraction fixtures, exporters, settings logic, and OpenSpec-driven contracts.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-032",
+      "text": "The test suite includes Playwright coverage for extension flows, settings flows, bookmarklet flows, export downloads, and representative LinkedIn-profile fixture pages.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-033",
+      "text": "CI does not depend on a live LinkedIn account; automated tests use fixtures, recorded static pages, or local harness pages for deterministic validation.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-034",
+      "text": "The repository includes GitHub Actions CI/CD for install, lint, typecheck, tests, extension builds, docs builds, asset checks, and release-package checks.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-035",
+      "text": "The repository includes pre-commit configuration for deterministic local quality gates.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-036",
+      "text": "The repository includes a Justfile with commands for setup, development, OpenSpec validation, linting, typechecking, testing, building, docs, assets, and release packaging.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-037",
+      "text": "The repository documents conventional and atomic commit expectations without creating commits unless the user explicitly asks for them.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-038",
+      "text": "The repository includes a fully configured Fumadocs documentation site using current shadcn-ui and Tailwind CSS conventions, with SEO metadata, OpenGraph metadata, sitemap support, and product documentation.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-039",
+      "text": "The repository includes `DESIGN.md` describing the design system, UI patterns, typography, color, iconography, motion, accessibility expectations, and product tone.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-040",
+      "text": "The project includes a sleek, modern, simple, elegant, iconic generated project icon with transparent background and no text, letters, font, or words in the final icon image.",
+      "comment": null,
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "fact-041",
+      "text": "The project includes generated social preview imagery suitable for GitHub social preview and social-card usage.",
+      "comment": null,
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "fact-042",
+      "text": "The repository includes source-managed web-store listing copy, metadata, screenshot plans, image assets, and release checklists for each target web store.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-043",
+      "text": "The web-store management workflow does not perform credentialed store submissions in v0.1.0 unless the user separately requests that action.",
+      "comment": null,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-044",
+      "text": "Public asset formats and generated artifacts are documented so future agents can validate changes without relying on hidden assumptions.",
+      "comment": "there should be (nested) AGENTS.md ai agent instruction files thorughout the codebase too",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    }
+  ]
+}
