@@ -17,7 +17,9 @@ export default defineContentScript({
       }
       if (message.type === "extract-profile") {
         return waitForProfileContent()
+          .then(assertProfileReady)
           .then(() => prepareAccessibleSections(message.settings))
+          .then(assertProfileReady)
           .then(() => extractProfileFromDocument(document, { settings: message.settings }))
           .then((profile) => ({ ok: true as const, profile: applyProfileSettings(profile, message.settings) }))
           .catch((error: unknown) => ({ ok: false, error: error instanceof Error ? error.message : String(error) }));
@@ -38,8 +40,8 @@ async function prepareAccessibleSections(settings: Settings): Promise<void> {
   }
   if (!settings.expandShowMore) return;
 
-  const controls = Array.from(document.querySelectorAll<HTMLButtonElement | HTMLAnchorElement>("button, a"))
-    .filter((control) => /show more|see more|more results|show all/i.test(control.textContent ?? ""))
+  const controls = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+    .filter(isSafeExpansionButton)
     .slice(0, 20);
 
   for (const control of controls) {
@@ -50,6 +52,18 @@ async function prepareAccessibleSections(settings: Settings): Promise<void> {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function assertProfileReady(): void {
+  const readiness = detectLinkedInProfileReadiness(document);
+  if (readiness.state !== "ready") throw new Error(readiness.reason);
+}
+
+function isSafeExpansionButton(control: HTMLButtonElement): boolean {
+  if (control.disabled || control.getAttribute("aria-disabled") === "true") return false;
+  if (control.closest("form")) return false;
+  if (!/show more|see more|more results|show all/i.test(control.textContent ?? "")) return false;
+  return control.getClientRects().length > 0;
 }
 
 async function waitForProfileContent(timeoutMs = 3500): Promise<void> {

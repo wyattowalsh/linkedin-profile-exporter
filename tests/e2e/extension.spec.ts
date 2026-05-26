@@ -1,4 +1,5 @@
 import { denseProfileHtml, liveLikeProfileHtml, metadataBackedProfileHtml } from "../../packages/fixtures/src";
+import { SCHEMA_VERSION, type Profile } from "../../packages/core/src/schema";
 import { defaultSettings } from "../../packages/core/src/settings";
 import { expect, test } from "./extension-fixture";
 import type { Worker } from "@playwright/test";
@@ -29,11 +30,21 @@ test("extension pages render and options persist locally", async ({ page, extens
   await expect(page.getByRole("heading", { name: "Profile Exporter" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Clipboard" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Copy" })).toBeVisible();
-  await expect(page.locator("footer").getByRole("button", { name: "Download" })).toBeVisible();
+  await expect(page.locator("footer").getByRole("button", { name: "Copy selected" })).toBeVisible();
+  await expect(page.locator("footer").getByRole("button", { name: "Download selected" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Download" }).click();
+  await expect(page.locator("footer").getByRole("button", { name: "Download selected" })).toBeVisible();
 
   await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
-  await expect(page.getByRole("heading", { name: "Review" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Profile Exporter" })).toBeVisible();
+  await expect(page.locator("footer").getByRole("button", { name: "Download selected" })).toBeVisible();
+
+  const sessionProfile = fixtureProfile();
+  await page.evaluate(async (profile) => {
+    await chrome.storage.session.set({ "linkedin-profile-exporter.profile.session": profile });
+  }, sessionProfile);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Alex Rivera" })).toBeVisible();
 });
 
 test("content script reports readiness and extracts a fixture profile", async ({ context, extensionWorker }) => {
@@ -141,6 +152,37 @@ test("content script extracts a metadata-backed profile shell", async ({ context
   });
 });
 
+test("content script does not click navigational show-more links during extraction", async ({ context, extensionWorker }) => {
+  const fixtureUrl = "https://www.linkedin.com/in/e2e-safe-expansion/";
+  const unsafeLink = String.raw`<a id="unsafe-more" href="https://www.linkedin.com/feed/" onclick="window.__unsafeShowMoreClicked = true; location.href = 'https://www.linkedin.com/feed/'; return false;">Show more</a>`;
+  const page = await context.newPage();
+  await page.route(fixtureUrl, (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: denseProfileHtml.replace("<body>", `<body>${unsafeLink}`).replaceAll("https://www.linkedin.com/in/alex-rivera-fixture/", fixtureUrl)
+    })
+  );
+  await page.goto(fixtureUrl);
+  await expect(page.getByRole("heading", { name: "Alex Rivera" })).toBeVisible();
+
+  const tabId = await tabIdForUrl(extensionWorker, fixtureUrl);
+  if (!tabId) throw new Error("safe expansion fixture tab was not visible to the extension");
+
+  const extraction = await sendTabMessage(extensionWorker, tabId, {
+    type: "extract-profile",
+    settings: { ...defaultSettings, automationMode: "review-before-export" as const, expandShowMore: true }
+  });
+
+  expect(extraction).toMatchObject({
+    ok: true,
+    profile: {
+      identity: { name: "Alex Rivera", profileUrl: fixtureUrl }
+    }
+  });
+  await expect.poll(() => page.evaluate(() => Boolean((window as typeof window & { __unsafeShowMoreClicked?: boolean }).__unsafeShowMoreClicked))).toBe(false);
+  expect(page.url()).toBe(fixtureUrl);
+});
+
 async function tabIdForUrl(extensionWorker: Worker, url: string): Promise<number | undefined> {
   return extensionWorker.evaluate(async (targetUrl) => {
     const chromeApi = (globalThis as typeof globalThis & { chrome: any }).chrome;
@@ -169,4 +211,40 @@ async function sendTabMessage(extensionWorker: Worker, tabId: number, message: u
     },
     { id: tabId, runtimeMessage: message }
   );
+}
+
+function fixtureProfile(): Profile {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    identity: {
+      name: "Alex Rivera",
+      headline: "Engineering leader building privacy-preserving data products",
+      profileUrl: "https://www.linkedin.com/in/alex-rivera-fixture/",
+      links: []
+    },
+    work: [],
+    education: [],
+    skills: [],
+    licensesCertifications: [],
+    projects: [],
+    publications: [],
+    volunteering: [],
+    honorsAwards: [],
+    languages: [],
+    courses: [],
+    recommendations: [],
+    featured: [],
+    organizations: [],
+    interests: [],
+    metadata: {
+      capturedAt: "2026-05-25T12:00:00.000Z",
+      sourceUrl: "https://www.linkedin.com/in/alex-rivera-fixture/",
+      generator: "linkedin-profile-exporter"
+    },
+    diagnostics: [],
+    exportMetadata: {
+      formats: ["json", "markdown"],
+      filenameTemplate: "{name}-{date}-{format}"
+    }
+  };
 }
