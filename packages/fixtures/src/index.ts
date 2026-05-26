@@ -140,6 +140,25 @@ export const sparseProfileHtml = String.raw`<!doctype html>
   </body>
 </html>`;
 
+export const liveLikeProfileHtml = String.raw`<!doctype html>
+<html lang="en">
+  <head>
+    <meta property="og:url" content="https://www.linkedin.com/in/jordan-live-like/" />
+    <meta name="description" content="Product operator building local export workflows." />
+  </head>
+  <body>
+    <div class="scaffold-layout">
+      <div role="main" class="scaffold-layout__main">
+        <section class="pv-top-card ph5">
+          <div class="text-heading-xlarge">Jordan Lee</div>
+          <div class="text-body-medium break-words">Product operator building local export workflows</div>
+          <span class="text-body-small inline t-black--light break-words">Brooklyn, NY</span>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>`;
+
 export const multilingualProfileHtml = String.raw`<!doctype html>
 <html lang="es">
   <head>

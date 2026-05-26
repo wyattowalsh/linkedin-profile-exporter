@@ -1,5 +1,5 @@
 import { Check, Clipboard, Download, Trash2 } from "lucide-react";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { toast, Toaster } from "sonner";
 import { EXPORT_FORMATS } from "@linkedin-profile-exporter/core/exporters";
@@ -11,25 +11,34 @@ import { clearExtractedState, loadSettings, saveSettings } from "../../src/stora
 
 function OptionsApp() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const settingsRef = useRef<Settings>(defaultSettings);
 
   useEffect(() => {
     void loadSettings()
-      .then(setSettings)
-      .catch(() => setSettings(defaultSettings));
+      .then((loaded) => {
+        settingsRef.current = loaded;
+        setSettings(loaded);
+      })
+      .catch(() => {
+        settingsRef.current = defaultSettings;
+        setSettings(defaultSettings);
+      });
   }, []);
 
-  async function save(next: Settings) {
-    const parsed = settingsSchema.parse(next);
+  async function save(next: Settings | ((current: Settings) => Settings)) {
+    const candidate = typeof next === "function" ? next(settingsRef.current) : next;
+    const parsed = settingsSchema.parse(candidate);
+    settingsRef.current = parsed;
     setSettings(parsed);
     await saveSettings(parsed);
     toast.success("Settings saved locally");
   }
 
-  function withFormat(format: ExportFormat, checked: boolean): Settings {
+  function withFormat(current: Settings, format: ExportFormat, checked: boolean): Settings {
     const outputFormats = checked
-      ? Array.from(new Set([...settings.outputFormats, format]))
-      : settings.outputFormats.filter((item) => item !== format);
-    return { ...settings, outputFormats: outputFormats.length ? outputFormats : settings.outputFormats };
+      ? Array.from(new Set([...current.outputFormats, format]))
+      : current.outputFormats.filter((item) => item !== format);
+    return { ...current, outputFormats: outputFormats.length ? outputFormats : current.outputFormats };
   }
 
   return (
@@ -47,7 +56,10 @@ function OptionsApp() {
             <select
               className="rounded-md border border-[#cbd8d1] p-2"
               value={settings.automationMode}
-              onChange={(event) => void save({ ...settings, automationMode: event.currentTarget.value as Settings["automationMode"] })}
+              onChange={(event) => {
+                const automationMode = event.currentTarget.value as Settings["automationMode"];
+                void save((current) => ({ ...current, automationMode }));
+              }}
             >
               <option value="manual">Manual extraction</option>
               <option value="review-before-export">Review before export</option>
@@ -59,7 +71,10 @@ function OptionsApp() {
             <select
               className="rounded-md border border-[#cbd8d1] p-2"
               value={settings.deliveryMode}
-              onChange={(event) => void save({ ...settings, deliveryMode: event.currentTarget.value as Settings["deliveryMode"] })}
+              onChange={(event) => {
+                const deliveryMode = event.currentTarget.value as Settings["deliveryMode"];
+                void save((current) => ({ ...current, deliveryMode }));
+              }}
             >
               <option value="download">Download files</option>
               <option value="clipboard">Copy text to clipboard</option>
@@ -67,8 +82,8 @@ function OptionsApp() {
           </label>
         </div>
         <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-          <Toggle checked={settings.autoScroll} label="Scroll before extraction" onChange={(checked) => save({ ...settings, autoScroll: checked })} />
-          <Toggle checked={settings.expandShowMore} label="Expand show-more controls" onChange={(checked) => save({ ...settings, expandShowMore: checked })} />
+          <Toggle checked={settings.autoScroll} label="Scroll before extraction" onChange={(checked) => save((current) => ({ ...current, autoScroll: checked }))} />
+          <Toggle checked={settings.expandShowMore} label="Expand show-more controls" onChange={(checked) => save((current) => ({ ...current, expandShowMore: checked }))} />
         </div>
       </section>
 
@@ -79,13 +94,16 @@ function OptionsApp() {
           <input
             className="rounded-md border border-[#cbd8d1] p-2"
             value={settings.filenameTemplate}
-            onChange={(event) => setSettings({ ...settings, filenameTemplate: event.currentTarget.value })}
-            onBlur={() => void save(settings)}
+            onChange={(event) => setSettings((current) => ({ ...current, filenameTemplate: event.currentTarget.value }))}
+            onBlur={(event) => {
+              const filenameTemplate = event.currentTarget.value;
+              void save((current) => ({ ...current, filenameTemplate }));
+            }}
           />
         </label>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
           {EXPORT_FORMATS.map((format) => (
-            <Toggle key={format} checked={settings.outputFormats.includes(format)} label={format} onChange={(checked) => save(withFormat(format, checked))} />
+            <Toggle key={format} checked={settings.outputFormats.includes(format)} label={format} onChange={(checked) => save((current) => withFormat(current, format, checked))} />
           ))}
         </div>
         <p className="mt-2 text-xs text-[#58665f]">
@@ -101,7 +119,7 @@ function OptionsApp() {
               key={key}
               checked={value}
               label={labelize(key)}
-              onChange={(checked) => save({ ...settings, dataScope: { ...settings.dataScope, [key]: checked } })}
+              onChange={(checked) => save((current) => ({ ...current, dataScope: { ...current.dataScope, [key]: checked } }))}
             />
           ))}
         </div>
@@ -113,22 +131,22 @@ function OptionsApp() {
           <Toggle
             checked={settings.privacy.persistExtractedData}
             label="Keep extracted profile locally"
-            onChange={(checked) => save({ ...settings, privacy: { ...settings.privacy, persistExtractedData: checked } })}
+            onChange={(checked) => save((current) => ({ ...current, privacy: { ...current.privacy, persistExtractedData: checked } }))}
           />
           <Toggle
             checked={settings.diagnostics.includeProvenance}
             label="Include provenance"
-            onChange={(checked) => save({ ...settings, diagnostics: { ...settings.diagnostics, includeProvenance: checked } })}
+            onChange={(checked) => save((current) => ({ ...current, diagnostics: { ...current.diagnostics, includeProvenance: checked } }))}
           />
           <Toggle
             checked={settings.diagnostics.includeConfidence}
             label="Include confidence"
-            onChange={(checked) => save({ ...settings, diagnostics: { ...settings.diagnostics, includeConfidence: checked } })}
+            onChange={(checked) => save((current) => ({ ...current, diagnostics: { ...current.diagnostics, includeConfidence: checked } }))}
           />
           <Toggle
             checked={settings.diagnostics.verbose}
             label="Verbose diagnostics"
-            onChange={(checked) => save({ ...settings, diagnostics: { ...settings.diagnostics, verbose: checked } })}
+            onChange={(checked) => save((current) => ({ ...current, diagnostics: { ...current.diagnostics, verbose: checked } }))}
           />
         </div>
         <ul className="mt-3 space-y-1 text-xs text-[#58665f]">

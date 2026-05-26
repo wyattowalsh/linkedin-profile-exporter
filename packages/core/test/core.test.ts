@@ -4,6 +4,7 @@ import {
   denseProfileHtml,
   hiddenSectionProfileHtml,
   invalidProfileFixture,
+  liveLikeProfileHtml,
   multilingualProfileHtml,
   sparseProfileHtml
 } from "@linkedin-profile-exporter/fixtures";
@@ -47,6 +48,31 @@ describe("extraction", () => {
   it("detects LinkedIn readiness states", () => {
     expect(detectLinkedInProfileReadiness("https://www.linkedin.com/in/example/").state).toBe("ready");
     expect(detectLinkedInProfileReadiness("https://example.test/not-linkedin").state).toBe("unavailable");
+  });
+
+  it("detects delayed live-style LinkedIn landmarks", () => {
+    const emptyDocument = new DOMParser().parseFromString("<!doctype html><html><body></body></html>", "text/html");
+    expect(detectLinkedInProfileReadiness({ document: emptyDocument, url: "https://www.linkedin.com/in/loading/" })).toMatchObject({
+      state: "needs-action",
+      profileUrl: "https://www.linkedin.com/in/loading/"
+    });
+
+    const gateDocument = new DOMParser().parseFromString(
+      '<!doctype html><html><body><main><h1>Sign in to LinkedIn</h1></main></body></html>',
+      "text/html"
+    );
+    expect(detectLinkedInProfileReadiness({ document: gateDocument, url: "https://www.linkedin.com/in/gated/" })).toMatchObject({
+      state: "needs-action",
+      profileUrl: "https://www.linkedin.com/in/gated/"
+    });
+
+    const liveLikeDocument = new DOMParser().parseFromString(liveLikeProfileHtml, "text/html");
+    expect(detectLinkedInProfileReadiness(liveLikeDocument).state).toBe("ready");
+    expect(extractProfileFromHtml(liveLikeProfileHtml).identity).toMatchObject({
+      name: "Jordan Lee",
+      headline: "Product operator building local export workflows",
+      location: "Brooklyn, NY"
+    });
   });
 
   it("extracts dense profile sections with provenance and diagnostics", () => {

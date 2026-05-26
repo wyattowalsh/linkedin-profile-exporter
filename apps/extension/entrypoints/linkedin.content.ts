@@ -13,10 +13,11 @@ export default defineContentScript({
   main() {
     browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<RuntimeResponse> | undefined => {
       if (message.type === "profile-readiness") {
-        return Promise.resolve({ ok: true as const, readiness: detectLinkedInProfileReadiness(document) });
+        return waitForProfileContent().then(() => ({ ok: true as const, readiness: detectLinkedInProfileReadiness(document) }));
       }
       if (message.type === "extract-profile") {
-        return prepareAccessibleSections(message.settings)
+        return waitForProfileContent()
+          .then(() => prepareAccessibleSections(message.settings))
           .then(() => extractProfileFromDocument(document, { settings: message.settings }))
           .then((profile) => ({ ok: true as const, profile: applyProfileSettings(profile, message.settings) }))
           .catch((error: unknown) => ({ ok: false, error: error instanceof Error ? error.message : String(error) }));
@@ -49,4 +50,25 @@ async function prepareAccessibleSections(settings: Settings): Promise<void> {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForProfileContent(timeoutMs = 3500): Promise<void> {
+  if (detectLinkedInProfileReadiness(document).state === "ready") return;
+  if (!document.body) await delay(50);
+  if (detectLinkedInProfileReadiness(document).state === "ready") return;
+
+  await new Promise<void>((resolve) => {
+    const observer = new MutationObserver(() => {
+      if (detectLinkedInProfileReadiness(document).state === "ready") {
+        window.clearTimeout(timeout);
+        observer.disconnect();
+        resolve();
+      }
+    });
+    const timeout = window.setTimeout(() => {
+      observer.disconnect();
+      resolve();
+    }, timeoutMs);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  });
 }

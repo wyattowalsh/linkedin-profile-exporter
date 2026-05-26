@@ -22,6 +22,44 @@ export interface ExtractionOptions {
   now?: string;
 }
 
+const LINKEDIN_PROFILE_URL_PATTERN = /^https:\/\/([a-z]{2,3}\.)?www\.linkedin\.com\/in\/[^/]+\/?/i;
+const PROFILE_ROOT_SELECTOR = [
+  "[data-lpe-profile]",
+  "main",
+  '[role="main"]',
+  ".scaffold-layout__main",
+  ".scaffold-layout"
+].join(", ");
+const PROFILE_NAME_SELECTOR = [
+  '[data-lpe-section="identity"] [data-field="name"]',
+  '[data-lpe-section="identity"] h1',
+  ".pv-text-details__left-panel h1",
+  ".pv-top-card h1",
+  ".pv-top-card .text-heading-xlarge",
+  '[class*="pv-top-card"] h1',
+  '[class*="pv-top-card"] .text-heading-xlarge',
+  'main h1.text-heading-xlarge',
+  '[role="main"] h1.text-heading-xlarge',
+  'main [data-anonymize="person-name"]',
+  '[role="main"] [data-anonymize="person-name"]',
+  'main .text-heading-xlarge',
+  '[role="main"] .text-heading-xlarge'
+].join(", ");
+const PROFILE_HEADLINE_SELECTOR = [
+  '[data-lpe-section="identity"] [data-field="headline"]',
+  ".pv-top-card .text-body-medium.break-words",
+  '[class*="pv-top-card"] [class*="text-body-medium"][class*="break-words"]',
+  'main .text-body-medium.break-words',
+  '[role="main"] .text-body-medium.break-words'
+].join(", ");
+const PROFILE_LOCATION_SELECTOR = [
+  '[data-lpe-section="identity"] [data-field="location"]',
+  '.pv-top-card [class*="text-body-small"][class*="t-black--light"][class*="break-words"]',
+  '[class*="pv-top-card"] [class*="text-body-small"][class*="t-black--light"][class*="break-words"]',
+  'main [class*="text-body-small"][class*="t-black--light"][class*="break-words"]',
+  '[role="main"] [class*="text-body-small"][class*="t-black--light"][class*="break-words"]'
+].join(", ");
+
 function capturedAt(options?: ExtractionOptions): string {
   return options?.now ?? new Date().toISOString();
 }
@@ -65,19 +103,32 @@ export function detectLinkedInProfileReadiness(
   const url = typeof target === "string" ? target : typeof target === "object" && !("querySelector" in target) ? target.url : document?.location?.href;
   const candidate = url ?? (document ? profileUrlFromDocument(document) : undefined);
 
-  if (!candidate || !/^https:\/\/([a-z]{2,3}\.)?www\.linkedin\.com\/in\/[^/]+\/?/i.test(candidate)) {
+  if (!candidate || !LINKEDIN_PROFILE_URL_PATTERN.test(candidate)) {
     return { state: "unavailable", reason: "Current page is not a LinkedIn profile URL." };
   }
 
-  if (document && !document.querySelector("[data-lpe-profile], main, h1")) {
+  if (document && !hasProfileContent(document)) {
     return {
       state: "needs-action",
-      reason: "LinkedIn profile URL is present, but accessible profile content was not found.",
+      reason: "LinkedIn profile URL is present, but profile content is not loaded yet. Wait for the profile to finish loading, sign in if LinkedIn shows a gate, then retry.",
       profileUrl: candidate
     };
   }
 
   return { state: "ready", reason: "LinkedIn profile content is available.", profileUrl: candidate };
+}
+
+export function hasProfileContent(document: Document): boolean {
+  if (document.querySelector("[data-lpe-profile]")) return true;
+  if (!document.querySelector(PROFILE_ROOT_SELECTOR)) return false;
+
+  const name = text(document, PROFILE_NAME_SELECTOR);
+  return Boolean(name && !isLinkedInGateText(name));
+}
+
+function isLinkedInGateText(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return /^(sign in|log in|join linkedin|linkedin)$/.test(normalized) || normalized.includes("sign in to view");
 }
 
 export function extractProfileFromHtml(html: string, options: ExtractionOptions = {}): Profile {
@@ -141,12 +192,12 @@ export function extractProfileFromDocument(document: Document, options: Extracti
   const profile: Profile = profileSchema.parse({
     schemaVersion: SCHEMA_VERSION,
     identity: {
-      name: text(document, '[data-lpe-section="identity"] [data-field="name"], h1') ?? "Unknown LinkedIn Profile",
+      name: text(document, PROFILE_NAME_SELECTOR) ?? "Unknown LinkedIn Profile",
       headline:
-        text(document, '[data-lpe-section="identity"] [data-field="headline"]') ??
+        text(document, PROFILE_HEADLINE_SELECTOR) ??
         state?.identity?.headline ??
         document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content,
-      location: text(document, '[data-lpe-section="identity"] [data-field="location"]'),
+      location: text(document, PROFILE_LOCATION_SELECTOR),
       profileUrl,
       about,
       links: Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-lpe-section="identity"] a[href]')).map(
