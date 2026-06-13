@@ -2,10 +2,20 @@
 
 ## Icon
 
-Prompt: simple modern transparent app icon, no text, no letters, no words, abstract profile outline flowing into structured data columns, restrained green and blue accents, clean vector geometry.
+Prompt: generated ultra-simple transparent browser-extension PNG app icon, no text, no
+letters, no words, very LinkedIn-blue professional profile card with a pale cover band,
+one circular avatar, one short navy profile row, and one small teal 2x2 exported
+spreadsheet grid fused into the lower-right corner, no LinkedIn wordmark, no letter-like
+shapes, no human torso or neck silhouette, no arrow, strong readability at 16px toolbar
+size.
 
-Manual review on 2026-05-25: icon contains no text nodes, no letter shapes, and a transparent background.
+Manual review on 2026-05-27: icon contains no visible text, no letter-like shapes, no
+body/neck silhouette, and a real alpha-channel transparent background after removing the
+generator's baked checkerboard.
 
 ## Social Preview
 
-Prompt: structured product social preview showing a browser profile panel transforming into local export format tiles, restrained neutral background, green and blue accents, no credential or analytics implication.
+Prompt: source-managed product social preview using the generated profile-export PNG
+icon with large structured export slips, restrained neutral background, blue and teal
+accents, no LinkedIn wordmark, no letter-like shapes, no credential, analytics,
+cloud-upload, oversized arrow, or human-body implication.

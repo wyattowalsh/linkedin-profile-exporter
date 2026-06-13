@@ -7,6 +7,8 @@ import {
   liveLikeProfileHtml,
   metadataBackedProfileHtml,
   multilingualProfileHtml,
+  voyagerDashGraphqlProfilePayload,
+  voyagerDashProfilePayload,
   sparseProfileHtml,
   voyagerProfilePayload,
   voyagerSupplementalSkillsPayload
@@ -30,9 +32,12 @@ import {
   settingsSchema
 } from "../src";
 
+const fullMetadataSettings = { diagnostics: { includeAllFields: true } } as const;
+const fixedNow = "2026-05-25T12:00:00.000Z";
+
 describe("canonical schema", () => {
   it("accepts dense extracted fixtures and rejects invalid fixtures", () => {
-    const profile = extractProfileFromHtml(denseProfileHtml, { now: "2026-05-25T12:00:00.000Z" });
+    const profile = extractProfileFromHtml(denseProfileHtml, { now: fixedNow });
     expect(profileSchema.parse(profile).identity.name).toBe("Alex Rivera");
     expect(() => profileSchema.parse(invalidProfileFixture)).toThrow();
   });
@@ -45,27 +50,50 @@ describe("canonical schema", () => {
     expect(settings.outputFormats).toContain("json");
     expect(settings.automationMode).toBe("review-before-export");
     expect(settings.deliveryMode).toBe("download");
+    expect(settings.diagnostics).toMatchObject({
+      includeAllFields: false,
+      includeProvenance: false,
+      includeConfidence: false,
+      verbose: false
+    });
   });
 });
 
 describe("extraction", () => {
   it("detects LinkedIn readiness states", () => {
-    expect(detectLinkedInProfileReadiness("https://www.linkedin.com/in/example/").state).toBe("ready");
-    expect(detectLinkedInProfileReadiness("https://example.test/not-linkedin").state).toBe("unavailable");
+    expect(detectLinkedInProfileReadiness("https://www.linkedin.com/in/example/").state).toBe(
+      "ready"
+    );
+    expect(detectLinkedInProfileReadiness("https://example.test/not-linkedin").state).toBe(
+      "unavailable"
+    );
   });
 
   it("detects delayed live-style LinkedIn landmarks", () => {
-    const emptyDocument = new DOMParser().parseFromString("<!doctype html><html><body></body></html>", "text/html");
-    expect(detectLinkedInProfileReadiness({ document: emptyDocument, url: "https://www.linkedin.com/in/loading/" })).toMatchObject({
+    const emptyDocument = new DOMParser().parseFromString(
+      "<!doctype html><html><body></body></html>",
+      "text/html"
+    );
+    expect(
+      detectLinkedInProfileReadiness({
+        document: emptyDocument,
+        url: "https://www.linkedin.com/in/loading/"
+      })
+    ).toMatchObject({
       state: "needs-action",
       profileUrl: "https://www.linkedin.com/in/loading/"
     });
 
     const gateDocument = new DOMParser().parseFromString(
-      '<!doctype html><html><body><main><h1>Sign in to LinkedIn</h1></main></body></html>',
+      "<!doctype html><html><body><main><h1>Sign in to LinkedIn</h1></main></body></html>",
       "text/html"
     );
-    expect(detectLinkedInProfileReadiness({ document: gateDocument, url: "https://www.linkedin.com/in/gated/" })).toMatchObject({
+    expect(
+      detectLinkedInProfileReadiness({
+        document: gateDocument,
+        url: "https://www.linkedin.com/in/gated/"
+      })
+    ).toMatchObject({
       state: "needs-action",
       profileUrl: "https://www.linkedin.com/in/gated/"
     });
@@ -78,7 +106,10 @@ describe("extraction", () => {
       location: "Brooklyn, NY"
     });
 
-    const metadataDocument = new DOMParser().parseFromString(metadataBackedProfileHtml, "text/html");
+    const metadataDocument = new DOMParser().parseFromString(
+      metadataBackedProfileHtml,
+      "text/html"
+    );
     expect(detectLinkedInProfileReadiness(metadataDocument).state).toBe("ready");
     expect(extractProfileFromHtml(metadataBackedProfileHtml).identity).toMatchObject({
       name: "Taylor Morgan",
@@ -87,28 +118,105 @@ describe("extraction", () => {
   });
 
   it("extracts dense profile sections with provenance and diagnostics", () => {
-    const profile = extractProfileFromHtml(denseProfileHtml, { now: "2026-05-25T12:00:00.000Z" });
+    const profile = extractProfileFromHtml(denseProfileHtml, {
+      now: fixedNow,
+      settings: fullMetadataSettings
+    });
     expect(profile.work[0]?.roles[0]?.title).toBe("Engineering Manager");
+    expect(profile.work[0]).toMatchObject({
+      employmentType: "Full-time",
+      companyUrl: "https://www.linkedin.com/company/northstar-labs/",
+      companyLogoUrl: "https://static.example.test/company/northstar-200.png",
+      companyIndustry: "Software Development"
+    });
+    expect(profile.work[0]?.roles[0]).toMatchObject({
+      employmentType: "Full-time",
+      location: "Remote"
+    });
     expect(profile.education[0]?.school).toBe("Example University");
+    expect(profile.education[0]).toMatchObject({
+      schoolUrl: "https://www.linkedin.com/school/example-university/",
+      schoolLogoUrl: "https://static.example.test/school/example-university-200.png"
+    });
     expect(profile.skills.map((skill) => skill.name)).toContain("Schema Design");
+    expect(profile.licensesCertifications[0]).toMatchObject({
+      credentialId: "CERT-PRIVACY-1",
+      issuerUrl: "https://www.linkedin.com/company/example-standards-institute/",
+      issuerLogoUrl: "https://static.example.test/company/example-standards.png"
+    });
+    expect(profile.projects[0]).toMatchObject({
+      associatedWith: "Director of Engineering, Northstar Labs",
+      contributors: ["Alex Rivera", "Taylor Morgan"]
+    });
+    expect(profile.publications[0]).toMatchObject({
+      description: "A fixture article about auditable browser data exports.",
+      authors: ["Alex Rivera", "Taylor Morgan"]
+    });
+    expect(profile.volunteering[0]).toMatchObject({
+      organizationUrl: "https://www.linkedin.com/company/local-tech-fellows/",
+      organizationLogoUrl: "https://static.example.test/company/local-tech-fellows.png",
+      cause: "Education"
+    });
+    expect(profile.honorsAwards[0]).toMatchObject({
+      associatedWith: "Director of Engineering, Northstar Labs"
+    });
+    expect(profile.courses[0]).toMatchObject({
+      number: "AUT-201"
+    });
+    expect(profile.featured[0]).toMatchObject({
+      type: "article",
+      imageUrl: "https://static.example.test/featured/demo.png"
+    });
+    expect(profile.organizations[0]).toMatchObject({
+      dates: "2024 - Present",
+      description: "Professional community for local browser automation.",
+      url: "https://example.test/guild",
+      logoUrl: "https://static.example.test/org/guild.png"
+    });
+    expect(profile.interests[0]).toMatchObject({
+      name: "Local-first software",
+      url: "https://example.test/local-first"
+    });
     expect(profile.recommendations[0]?.text).toContain("ambiguous data problems");
+    expect(profile.testScores[0]).toMatchObject({
+      name: "GRE Quantitative Reasoning",
+      score: "170"
+    });
+    expect(profile.patents[0]).toMatchObject({
+      title: "Local Browser Export Workflow",
+      patentNumber: "US-EXAMPLE-1"
+    });
     expect(profile.identity.provenance?.sourceType).toBe("dom");
-    expect(profile.diagnostics.some((diagnostic) => diagnostic.code === "client-state.parsed")).toBe(true);
+    expect(
+      profile.diagnostics.some((diagnostic) => diagnostic.code === "client-state.parsed")
+    ).toBe(true);
   });
 
   it("handles sparse, multilingual, and hidden-section fixtures", () => {
     expect(extractProfileFromHtml(sparseProfileHtml).work).toHaveLength(0);
     expect(extractProfileFromHtml(multilingualProfileHtml).metadata.locale).toBe("es");
-    const hidden = extractProfileFromHtml(hiddenSectionProfileHtml);
+    const hidden = extractProfileFromHtml(hiddenSectionProfileHtml, {
+      settings: fullMetadataSettings
+    });
     expect(hidden.projects[0]?.name).toBe("Local Export Workbench");
-    expect(hidden.diagnostics.some((diagnostic) => diagnostic.code === "automation.hidden-section")).toBe(true);
+    expect(
+      hidden.diagnostics.some((diagnostic) => diagnostic.code === "automation.hidden-section")
+    ).toBe(true);
   });
 
   it("continues when embedded client state has an unsupported shape", () => {
-    const html = denseProfileHtml.replace('"skills": [{ "name": "Schema Design", "endorsements": 8 }]', '"skills": "not-an-array"');
-    const profile = extractProfileFromHtml(html, { now: "2026-05-25T12:00:00.000Z" });
+    const html = denseProfileHtml.replace(
+      '"skills": [{ "name": "Schema Design", "endorsements": 8 }]',
+      '"skills": "not-an-array"'
+    );
+    const profile = extractProfileFromHtml(html, {
+      now: fixedNow,
+      settings: fullMetadataSettings
+    });
     expect(profile.identity.name).toBe("Alex Rivera");
-    expect(profile.diagnostics.some((diagnostic) => diagnostic.code === "client-state.invalid-shape")).toBe(true);
+    expect(
+      profile.diagnostics.some((diagnostic) => diagnostic.code === "client-state.invalid-shape")
+    ).toBe(true);
   });
 
   it("extracts real-profile sections from LinkedIn Voyager payloads", () => {
@@ -120,7 +228,8 @@ describe("extraction", () => {
     expect(profile.identity).toMatchObject({
       name: "Alex Rivera",
       headline: "Engineering leader building privacy-preserving data products",
-      about: "I build local-first tools that turn messy browser workflows into structured, reviewable data.",
+      about:
+        "I build local-first tools that turn messy browser workflows into structured, reviewable data.",
       location: "New York, NY"
     });
     expect(profile.work[0]).toMatchObject({
@@ -135,26 +244,269 @@ describe("extraction", () => {
       dates: "2011 - 2015"
     });
     expect(profile.skills.map((skill) => skill.name)).toEqual(["TypeScript", "Browser Extensions"]);
-    expect(profile.projects[0]?.name).toBe("Local Export Workbench");
-    expect(profile.diagnostics.some((diagnostic) => diagnostic.code === "linkedin-voyager.parsed")).toBe(true);
+    expect(profile.licensesCertifications[0]).toMatchObject({
+      name: "Privacy Engineering Certificate",
+      issuerUrl: "https://www.linkedin.com/company/example-standards-institute/",
+      issuerLogoUrl: "https://static.example.test/company/example-standards.png",
+      date: "2024 - Present"
+    });
+    expect(profile.projects[0]).toMatchObject({
+      name: "Local Export Workbench",
+      associatedWith: "Director of Engineering, Northstar Labs",
+      contributors: ["Alex Rivera"]
+    });
+    expect(profile.publications[0]).toMatchObject({
+      name: "Practical Provenance for Browser Data",
+      description: "A fixture article about auditable browser data exports.",
+      authors: ["Alex Rivera"]
+    });
+    expect(profile.volunteering[0]).toMatchObject({
+      organization: "Local Tech Fellows",
+      organizationUrl: "https://www.linkedin.com/company/local-tech-fellows/",
+      organizationLogoUrl: "https://static.example.test/company/local-tech-fellows.png",
+      cause: "Education"
+    });
+    expect(profile.honorsAwards[0]).toMatchObject({
+      title: "Data Quality Leadership Award",
+      associatedWith: "Director of Engineering, Northstar Labs"
+    });
+    expect(
+      profile.diagnostics.some((diagnostic) => diagnostic.code === "linkedin-voyager.parsed")
+    ).toBe(true);
+  });
+
+  it("extracts Dash Voyager profile payloads with position groups", () => {
+    const profile = extractProfileFromVoyagerPayload(voyagerDashProfilePayload, {
+      now: "2026-05-25T12:00:00.000Z",
+      source: "linkedin-voyager.network.dashProfile",
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(profile.identity.name).toBe("Alex Rivera");
+    expect(profile.identity).toMatchObject({
+      industry: "Software Development",
+      connections: "500",
+      followers: "1200",
+      imagery: {
+        profileImageUrl: "https://static.example.test/profile/alex-400.png"
+      }
+    });
+    expect(profile.work[0]).toMatchObject({
+      title: "Director of Engineering",
+      company: "Northstar Labs",
+      employmentType: "Full-time",
+      dates: "2020-06 - Present",
+      companyUrl: "https://www.linkedin.com/company/northstar-labs/",
+      companyLogoUrl: "https://static.example.test/company/northstar-200.png",
+      companyIndustry: "Software Development"
+    });
+    expect(profile.work[0]?.roles).toMatchObject([
+      {
+        title: "Director of Engineering",
+        employmentType: "Full-time",
+        location: "New York, NY",
+        dates: "2021-01 - Present",
+        description: "Led browser automation and data quality teams."
+      },
+      {
+        title: "Engineering Manager",
+        employmentType: "Full-time",
+        location: "Remote",
+        dates: "2020-06 - 2020-12",
+        description: "Scaled the platform engineering team."
+      }
+    ]);
+    expect(profile.education[0]).toMatchObject({
+      school: "Example University",
+      schoolUrl: "https://www.linkedin.com/school/example-university/",
+      schoolLogoUrl: "https://static.example.test/school/example-university-200.png"
+    });
+    expect(profile.skills).toMatchObject([{ name: "TypeScript", endorsements: 12 }]);
+    expect(profile.languages[0]).toMatchObject({
+      language: "English",
+      fluency: "Native or bilingual"
+    });
+    expect(profile.courses[0]).toMatchObject({
+      name: "AUT-201 - Accessible Automation Systems",
+      number: "AUT-201",
+      provider: "Example University"
+    });
+    expect(profile.featured[0]).toMatchObject({
+      title: "Privacy-first extension demo",
+      type: "article",
+      url: "https://www.linkedin.com/feed/update/urn:li:activity:fixture",
+      imageUrl: "https://static.example.test/featured/demo.png"
+    });
+    expect(profile.testScores[0]).toMatchObject({
+      name: "GRE Quantitative Reasoning",
+      score: "170",
+      date: "2015"
+    });
+    expect(profile.patents[0]).toMatchObject({
+      title: "Local Browser Export Workflow",
+      issuer: "USPTO",
+      patentNumber: "US-EXAMPLE-1",
+      date: "2025",
+      url: "https://example.test/patent",
+      inventors: ["Alex Rivera"]
+    });
+    expect(profile.organizations[0]).toMatchObject({
+      name: "Browser Tools Guild",
+      role: "Member",
+      dates: "2024 - Present",
+      description: "Professional community for local browser automation.",
+      url: "https://example.test/guild"
+    });
+    expect(profile.interests[0]).toMatchObject({
+      name: "Local-first software",
+      url: "https://www.linkedin.com/company/local-first/"
+    });
+    expect(profile.identity.provenance?.sourceType).toBe("client-state");
+  });
+
+  it("extracts observed GraphQL Dash Voyager profile payloads", () => {
+    const profile = extractProfileFromVoyagerPayload(voyagerDashGraphqlProfilePayload, {
+      now: "2026-05-25T12:00:00.000Z",
+      source: "linkedin-voyager.network.identityDashProfiles",
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(profile.identity.name).toBe("Alex Rivera");
+    expect(profile.work[0]).toMatchObject({
+      title: "Director of Engineering",
+      company: "Northstar Labs"
+    });
+    expect(profile.education[0]?.school).toBe("Example University");
+    expect(profile.skills.map((skill) => skill.name)).toEqual(["TypeScript"]);
+    expect(profile.courses[0]?.name).toBe("AUT-201 - Accessible Automation Systems");
+    expect(profile.featured[0]?.title).toBe("Privacy-first extension demo");
+    expect(profile.testScores[0]?.name).toBe("GRE Quantitative Reasoning");
+    expect(profile.patents[0]?.title).toBe("Local Browser Export Workflow");
+  });
+
+  it("prefers the URL-matching Voyager profile identity when unrelated identities are present", () => {
+    const profile = extractProfileFromVoyagerPayload(
+      {
+        ...voyagerDashGraphqlProfilePayload,
+        included: [
+          {
+            entityUrn: "urn:li:fsd_profile:unrelated-profile",
+            $type: "com.linkedin.voyager.dash.identity.profile.Profile",
+            firstName: "Wrong",
+            lastName: "Person",
+            publicIdentifier: "unrelated-profile"
+          },
+          ...voyagerDashGraphqlProfilePayload.included
+        ]
+      },
+      {
+        now: fixedNow,
+        source: "linkedin-voyager.network.identityDashProfiles",
+        url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+      }
+    );
+
+    expect(profile.identity).toMatchObject({
+      name: "Alex Rivera",
+      memberUrn: "urn:li:fsd_profile:alex-rivera-fixture"
+    });
+  });
+
+  it("includes raw Voyager inventory only for verbose diagnostics", () => {
+    const quiet = extractProfileFromVoyagerPayload(voyagerDashGraphqlProfilePayload, {
+      now: "2026-05-25T12:00:00.000Z",
+      source: "linkedin-voyager.network.identityDashProfiles",
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(
+      quiet.diagnostics.some((diagnostic) =>
+        diagnostic.code.startsWith("linkedin-voyager.inventory.")
+      )
+    ).toBe(false);
+
+    const verbosePayload = {
+      ...voyagerDashGraphqlProfilePayload,
+      included: [
+        ...voyagerDashGraphqlProfilePayload.included,
+        {
+          entityUrn: "urn:li:collection:unrelated",
+          $type: "com.linkedin.restli.common.CollectionResponse",
+          "*elements": []
+        }
+      ]
+    };
+    const verbose = extractProfileFromVoyagerPayload(verbosePayload, {
+      now: "2026-05-25T12:00:00.000Z",
+      source: "linkedin-voyager.network.identityDashProfiles",
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/",
+      verboseDiagnostics: true
+    });
+    const sections = verbose.diagnostics.find(
+      (diagnostic) => diagnostic.code === "linkedin-voyager.inventory.sections"
+    );
+    const toc = verbose.diagnostics.find(
+      (diagnostic) => diagnostic.code === "linkedin-voyager.inventory.toc"
+    );
+    const entities = verbose.diagnostics.find(
+      (diagnostic) => diagnostic.code === "linkedin-voyager.inventory.entities"
+    );
+    const fields = verbose.diagnostics.find(
+      (diagnostic) => diagnostic.code === "linkedin-voyager.inventory.fields"
+    );
+    expect(sections?.message).toContain('"workPositionGroups":1');
+    expect(sections?.message).toContain('"courses":1');
+    expect(sections?.message).toContain('"featured":1');
+    expect(sections?.message).toContain('"testScores":1');
+    expect(sections?.message).toContain('"patents":1');
+    expect(toc?.message).toContain('"identityDashProfilesByMemberIdentity":1');
+    expect(entities?.message).toContain(
+      "com.linkedin.voyager.dash.deco.identity.profile.FullProfileCourse"
+    );
+    expect(entities?.message).toContain(
+      "com.linkedin.voyager.dash.deco.identity.profile.FullProfileTestScore"
+    );
+    expect(fields?.message).toContain("com.linkedin.voyager.dash.identity.profile.PositionGroup");
+    expect(fields?.message).toContain("*profilePositionInPositionGroup");
   });
 
   it("applies data scope and diagnostic settings without dropping required identity", () => {
-    const profile = extractProfileFromHtml(denseProfileHtml, { now: "2026-05-25T12:00:00.000Z" });
-    const filtered = applyProfileSettings(profile, {
-      dataScope: { ...defaultSettings.dataScope, identity: false, experience: false, extendedSections: false, imageryMetadata: false },
-      diagnostics: { includeConfidence: false, includeProvenance: false, verbose: false }
+    const profile = extractProfileFromHtml(denseProfileHtml, {
+      now: fixedNow,
+      settings: fullMetadataSettings
     });
-    expect(filtered.identity).toMatchObject({ name: "Alex Rivera", profileUrl: "https://www.linkedin.com/in/alex-rivera-fixture/" });
+    const filtered = applyProfileSettings(profile, {
+      dataScope: {
+        ...defaultSettings.dataScope,
+        identity: false,
+        experience: false,
+        extendedSections: false,
+        imageryMetadata: false
+      },
+      diagnostics: {
+        ...defaultSettings.diagnostics,
+        includeConfidence: false,
+        includeProvenance: false,
+        verbose: false
+      }
+    });
+    expect(filtered.identity).toMatchObject({
+      name: "Alex Rivera",
+      profileUrl: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
     expect(filtered.identity.headline).toBeUndefined();
     expect(filtered.identity.provenance).toBeUndefined();
     expect(filtered.work).toHaveLength(0);
     expect(filtered.projects).toHaveLength(0);
+    expect(filtered.testScores).toHaveLength(0);
+    expect(filtered.patents).toHaveLength(0);
   });
 });
 
 describe("exporters", () => {
-  const profile = () => extractProfileFromHtml(denseProfileHtml, { now: "2026-05-25T12:00:00.000Z" });
+  const profile = () => extractProfileFromHtml(denseProfileHtml, { now: fixedNow });
+  const fullProfile = () =>
+    extractProfileFromHtml(denseProfileHtml, {
+      now: fixedNow,
+      settings: fullMetadataSettings
+    });
 
   it("exports every registered format", async () => {
     await Promise.all(
@@ -167,17 +519,57 @@ describe("exporters", () => {
   });
 
   it("uses sanitized filename templates with format placeholders", async () => {
-    const result = await exportProfile(profile(), "markdown", { filenameTemplate: "{name}/{date}/{format}" });
+    const result = await exportProfile(profile(), "markdown", {
+      filenameTemplate: "{name}/{date}/{format}"
+    });
     expect(result.filename).toBe("alex-rivera-2026-05-25-markdown.md");
   });
 
   it("exports parseable JSON, YAML, XML, Markdown, CSV, and XLSX", async () => {
-    expect(JSON.parse(exportCanonicalJson(profile())).identity.name).toBe("Alex Rivera");
-    expect(exportJsonResume(profile()).basics).toMatchObject({ name: "Alex Rivera" });
+    const canonicalJson = JSON.parse(exportCanonicalJson(profile()));
+    expect(canonicalJson.identity.name).toBe("Alex Rivera");
+    expect(canonicalJson).not.toHaveProperty("diagnostics");
+    expect(canonicalJson.identity).not.toHaveProperty("provenance");
+    expect(canonicalJson.identity).not.toHaveProperty("confidence");
+
+    const fullCanonicalJson = JSON.parse(exportCanonicalJson(fullProfile()));
+    expect(fullCanonicalJson.identity.provenance.sourceType).toBe("dom");
+    expect(fullCanonicalJson.identity.confidence).toBe(0.92);
+    expect(
+      fullCanonicalJson.diagnostics.some(
+        (diagnostic: { code: string }) => diagnostic.code === "client-state.parsed"
+      )
+    ).toBe(true);
+
+    expect(exportJsonResume(profile())).toMatchObject({
+      basics: { name: "Alex Rivera" },
+      meta: {
+        linkedinProfileExporter: {
+          canonicalProfile: {
+            licensesCertifications: [expect.objectContaining({ credentialId: "CERT-PRIVACY-1" })],
+            featured: [expect.objectContaining({ type: "article" })]
+          },
+          testScores: [{ name: "GRE Quantitative Reasoning" }],
+          patents: [{ title: "Local Browser Export Workflow" }]
+        }
+      }
+    });
     expect(exportYamlResume(profile())).toContain("basics:");
-    expect(exportCsv(profile()).split("\n")[0]).toBe("section,index,field,value,source,confidence");
-    expect(exportMarkdown(profile())).toContain("---\nschema:");
-    expect(new XMLParser().parse(exportXml(profile())).profile.schemaVersion).toBe("linkedin-profile-exporter.profile.v1");
+    const csv = exportCsv(profile());
+    expect(csv.split("\n")[0]).toBe("section,index,field,value,source,confidence");
+    expect(csv).toContain("testScores");
+    const markdown = exportMarkdown(profile());
+    expect(markdown).toContain("---\nschema:");
+    expect(markdown).toContain("## Licenses Certifications");
+    expect(markdown).toContain("Credential Id: CERT-PRIVACY-1");
+    expect(markdown).toContain("## Projects");
+    expect(markdown).toContain("Contributors: Alex Rivera, Taylor Morgan");
+    expect(markdown).toContain("## Featured");
+    expect(markdown).toContain("Type: article");
+    expect(markdown).toContain("## Test Scores");
+    expect(new XMLParser().parse(exportXml(profile())).profile.schemaVersion).toBe(
+      "linkedin-profile-exporter.profile.v1"
+    );
     const workbook = await exportXlsx(profile());
     expect(workbook.byteLength).toBeGreaterThan(100);
   });

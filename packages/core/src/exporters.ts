@@ -3,8 +3,23 @@ import { XMLBuilder } from "fast-xml-parser";
 import { stringify as stringifyYaml } from "yaml";
 import { type ExportFormat, type Profile, validateProfile } from "./schema";
 
-export const EXPORT_FORMATS = ["json", "json-resume", "yaml", "csv", "xlsx", "xml", "markdown"] as const satisfies readonly ExportFormat[];
-export const TEXT_EXPORT_FORMATS = ["json", "json-resume", "yaml", "csv", "xml", "markdown"] as const satisfies readonly ExportFormat[];
+export const EXPORT_FORMATS = [
+  "json",
+  "json-resume",
+  "yaml",
+  "csv",
+  "xlsx",
+  "xml",
+  "markdown"
+] as const satisfies readonly ExportFormat[];
+export const TEXT_EXPORT_FORMATS = [
+  "json",
+  "json-resume",
+  "yaml",
+  "csv",
+  "xml",
+  "markdown"
+] as const satisfies readonly ExportFormat[];
 
 export interface ExportOptions {
   filenameTemplate?: string;
@@ -17,12 +32,25 @@ export interface ExportResult {
   contents: string | Uint8Array;
 }
 
-export async function exportProfile(profileInput: unknown, format: ExportFormat, options: ExportOptions = {}): Promise<ExportResult> {
+export async function exportProfile(
+  profileInput: unknown,
+  format: ExportFormat,
+  options: ExportOptions = {}
+): Promise<ExportResult> {
   const profile = validateProfile(profileInput);
-  const base = filenameBase(profile, format, options.filenameTemplate ?? profile.exportMetadata.filenameTemplate);
+  const base = filenameBase(
+    profile,
+    format,
+    options.filenameTemplate ?? profile.exportMetadata.filenameTemplate
+  );
   switch (format) {
     case "json":
-      return { format, filename: `${base}.json`, mimeType: "application/json", contents: exportCanonicalJson(profile) };
+      return {
+        format,
+        filename: `${base}.json`,
+        mimeType: "application/json",
+        contents: exportCanonicalJson(profile)
+      };
     case "json-resume":
       return {
         format,
@@ -31,9 +59,19 @@ export async function exportProfile(profileInput: unknown, format: ExportFormat,
         contents: JSON.stringify(exportJsonResume(profile), null, 2)
       };
     case "yaml":
-      return { format, filename: `${base}.yaml`, mimeType: "text/yaml", contents: exportYamlResume(profile) };
+      return {
+        format,
+        filename: `${base}.yaml`,
+        mimeType: "text/yaml",
+        contents: exportYamlResume(profile)
+      };
     case "csv":
-      return { format, filename: `${base}.csv`, mimeType: "text/csv", contents: exportCsv(profile) };
+      return {
+        format,
+        filename: `${base}.csv`,
+        mimeType: "text/csv",
+        contents: exportCsv(profile)
+      };
     case "xlsx":
       return {
         format,
@@ -42,14 +80,24 @@ export async function exportProfile(profileInput: unknown, format: ExportFormat,
         contents: await exportXlsx(profile)
       };
     case "xml":
-      return { format, filename: `${base}.xml`, mimeType: "application/xml", contents: exportXml(profile) };
+      return {
+        format,
+        filename: `${base}.xml`,
+        mimeType: "application/xml",
+        contents: exportXml(profile)
+      };
     case "markdown":
-      return { format, filename: `${base}.md`, mimeType: "text/markdown", contents: exportMarkdown(profile) };
+      return {
+        format,
+        filename: `${base}.md`,
+        mimeType: "text/markdown",
+        contents: exportMarkdown(profile)
+      };
   }
 }
 
 export function exportCanonicalJson(profileInput: unknown): string {
-  return JSON.stringify(validateProfile(profileInput), null, 2);
+  return JSON.stringify(compactCanonicalJson(validateProfile(profileInput)), null, 2);
 }
 
 export function exportJsonResume(profileInput: unknown): Record<string, unknown> {
@@ -69,7 +117,9 @@ export function exportJsonResume(profileInput: unknown): Record<string, unknown>
       position: item.title,
       location: item.location,
       summary: item.description,
-      highlights: item.roles.map((role) => [role.title, role.dates, role.description].filter(Boolean).join(" - ")),
+      highlights: item.roles.map((role) =>
+        [role.title, role.dates, role.description].filter(Boolean).join(" - ")
+      ),
       startDate: item.dates
     })),
     education: profile.education.map((item) => ({
@@ -79,7 +129,10 @@ export function exportJsonResume(profileInput: unknown): Record<string, unknown>
       startDate: item.dates,
       courses: item.activities ? [item.activities] : []
     })),
-    skills: profile.skills.map((item) => ({ name: item.name, keywords: item.endorsements ? [`${item.endorsements} endorsements`] : [] })),
+    skills: profile.skills.map((item) => ({
+      name: item.name,
+      keywords: item.endorsements ? [`${item.endorsements} endorsements`] : []
+    })),
     certificates: profile.licensesCertifications.map((item) => ({
       name: item.name,
       issuer: item.issuer,
@@ -95,13 +148,24 @@ export function exportJsonResume(profileInput: unknown): Record<string, unknown>
       startDate: item.dates
     })),
     awards: profile.honorsAwards,
-    languages: profile.languages.map((item) => ({ language: item.language, fluency: item.fluency })),
+    languages: profile.languages.map((item) => ({
+      language: item.language,
+      fluency: item.fluency
+    })),
     interests: profile.interests.map((item) => ({ name: item.name })),
     references: profile.recommendations.map((item) => ({ name: item.name, reference: item.text })),
     meta: {
       canonicalSchema: profile.schemaVersion,
       generatedAt: profile.metadata.capturedAt,
-      sourceUrl: profile.metadata.sourceUrl
+      sourceUrl: profile.metadata.sourceUrl,
+      linkedinProfileExporter: {
+        canonicalProfile: compactCanonicalJson(profile),
+        courses: profile.courses,
+        featured: profile.featured,
+        organizations: profile.organizations,
+        testScores: profile.testScores,
+        patents: profile.patents
+      }
     }
   };
 }
@@ -166,22 +230,28 @@ export function exportMarkdown(profileInput: unknown): string {
     profile.identity.about ?? "No accessible about text captured.",
     "",
     "## Experience",
-    ...profile.work.map((item) => `- ${item.title}${item.company ? `, ${item.company}` : ""}${item.dates ? ` (${item.dates})` : ""}${item.description ? `: ${item.description}` : ""}`),
+    ...profile.work.map((item) => `- ${formatRecordSummary(item, ["title", "company", "dates"])}`),
     "",
     "## Education",
-    ...profile.education.map((item) => `- ${item.school}${item.degree ? `, ${item.degree}` : ""}${item.field ? ` in ${item.field}` : ""}`),
+    ...profile.education.map(
+      (item) =>
+        `- ${item.school}${item.degree ? `, ${item.degree}` : ""}${item.field ? ` in ${item.field}` : ""}`
+    ),
     "",
     "## Skills",
     profile.skills.map((skill) => skill.name).join(", ") || "No accessible skills captured.",
     "",
-    "## Recommendations",
-    ...profile.recommendations.map((item) => `- ${item.name}: ${item.text}`)
+    ...repeatSections(profile)
+      .filter((section) => !["work", "education", "skills"].includes(section.name))
+      .flatMap((section) => markdownSection(section.name, section.items))
   ];
 
   return `${lines.filter((line, index) => line !== "" || lines[index - 1] !== "").join("\n")}\n`;
 }
 
-function repeatSections(profile: Profile): Array<{ name: string; items: Array<Record<string, unknown>> }> {
+function repeatSections(
+  profile: Profile
+): Array<{ name: string; items: Array<Record<string, unknown>> }> {
   return [
     { name: "work", items: profile.work },
     { name: "education", items: profile.education },
@@ -191,6 +261,8 @@ function repeatSections(profile: Profile): Array<{ name: string; items: Array<Re
     { name: "publications", items: profile.publications },
     { name: "volunteering", items: profile.volunteering },
     { name: "honorsAwards", items: profile.honorsAwards },
+    { name: "testScores", items: profile.testScores },
+    { name: "patents", items: profile.patents },
     { name: "languages", items: profile.languages },
     { name: "courses", items: profile.courses },
     { name: "recommendations", items: profile.recommendations },
@@ -200,7 +272,54 @@ function repeatSections(profile: Profile): Array<{ name: string; items: Array<Re
   ];
 }
 
-function flatten(section: string, input: unknown, rows: Array<Record<string, string>>, index = ""): void {
+function markdownSection(name: string, items: Array<Record<string, unknown>>): string[] {
+  if (!items.length) return [];
+  return ["", `## ${sectionTitle(name)}`, ...items.map((item) => `- ${formatRecordSummary(item)}`)];
+}
+
+function sectionTitle(name: string): string {
+  return name.replace(/([A-Z])/g, " $1").replace(/^./, (value) => value.toUpperCase());
+}
+
+function formatRecordSummary(
+  item: Record<string, unknown>,
+  preferredFields: string[] = []
+): string {
+  const ordered = [
+    ...preferredFields,
+    ...Object.keys(item).filter(
+      (key) => !preferredFields.includes(key) && key !== "provenance" && key !== "confidence"
+    )
+  ];
+  return ordered
+    .flatMap((key) => {
+      const value = item[key];
+      if (value === undefined) return [];
+      return [`${labelize(key)}: ${formatMarkdownValue(value)}`];
+    })
+    .join("; ");
+}
+
+function formatMarkdownValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map(formatMarkdownValue).join(", ");
+  }
+  if (value && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function labelize(value: string): string {
+  return value.replace(/([A-Z])/g, " $1").replace(/^./, (character) => character.toUpperCase());
+}
+
+function flatten(
+  section: string,
+  input: unknown,
+  rows: Array<Record<string, string>>,
+  index = ""
+): void {
   if (!input || typeof input !== "object") return;
   for (const [field, value] of Object.entries(input as Record<string, unknown>)) {
     if (field === "provenance" || field === "confidence") continue;
@@ -239,29 +358,57 @@ function confidenceOf(input: unknown): string {
 }
 
 function toCsv(rows: Array<Record<string, string>>, headers: string[]): string {
-  return [headers.join(","), ...rows.map((row) => headers.map((header) => csvEscape(row[header] ?? "")).join(","))].join("\n");
+  return [
+    headers.join(","),
+    ...rows.map((row) => headers.map((header) => csvEscape(row[header] ?? "")).join(","))
+  ].join("\n");
 }
 
 function csvEscape(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-function addWorksheet(workbook: ExcelJS.Workbook, name: string, items: Array<Record<string, unknown>>): void {
+function addWorksheet(
+  workbook: ExcelJS.Workbook,
+  name: string,
+  items: Array<Record<string, unknown>>
+): void {
   const worksheet = workbook.addWorksheet(name);
-  const keys = Array.from(new Set(items.flatMap((item) => Object.keys(item).filter((key) => key !== "provenance"))));
-  worksheet.columns = keys.map((key) => ({ header: key, key, width: Math.max(14, key.length + 2) }));
+  const keys = Array.from(
+    new Set(items.flatMap((item) => Object.keys(item).filter((key) => key !== "provenance")))
+  );
+  worksheet.columns = keys.map((key) => ({
+    header: key,
+    key,
+    width: Math.max(14, key.length + 2)
+  }));
   for (const item of items) {
     const row: Record<string, string> = {};
     for (const key of keys) {
       const value = item[key];
-      row[key] = typeof value === "object" && value !== null ? JSON.stringify(value) : value === undefined ? "" : String(value);
+      row[key] =
+        typeof value === "object" && value !== null
+          ? JSON.stringify(value)
+          : value === undefined
+            ? ""
+            : String(value);
     }
     worksheet.addRow(row);
   }
 }
 
+function compactCanonicalJson(profile: Profile): Profile | Omit<Profile, "diagnostics"> {
+  if (profile.diagnostics.length) return profile;
+  return Object.fromEntries(
+    Object.entries(profile).filter(([key]) => key !== "diagnostics")
+  ) as Omit<Profile, "diagnostics">;
+}
+
 function safeFilename(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-|-$/g, "");
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function filenameBase(profile: Profile, format: ExportFormat, template: string): string {

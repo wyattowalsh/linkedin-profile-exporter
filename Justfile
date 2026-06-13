@@ -36,6 +36,9 @@ assets:
 store:
     pnpm check:store
 
+github-release-package:
+    pnpm release:github:package
+
 quick:
     pnpm run quick
 

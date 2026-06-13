@@ -1,5 +1,5 @@
 import { readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const targets = ["chrome-mv3", "edge-mv3", "firefox-mv2", "safari-mv2"];
 const failures: string[] = [];
@@ -23,7 +23,9 @@ for (const target of targets) {
     permissions?: string[];
     host_permissions?: string[];
     content_scripts?: unknown[];
-    action?: unknown;
+    action?: {
+      default_state?: string;
+    };
     page_action?: unknown;
     browser_action?: unknown;
     options_ui?: unknown;
@@ -41,9 +43,29 @@ for (const target of targets) {
   if (!manifest.version) failures.push(`${path}: version missing`);
   if (!manifest.manifest_version) failures.push(`${path}: manifest_version missing`);
   if (!manifest.content_scripts?.length) failures.push(`${path}: content scripts missing`);
-  if (!manifest.action && !manifest.page_action && !manifest.browser_action) failures.push(`${path}: action/page_action missing`);
+  if (!manifest.action && !manifest.page_action && !manifest.browser_action)
+    failures.push(`${path}: action/page_action missing`);
+  if (
+    (target === "chrome-mv3" || target === "edge-mv3") &&
+    manifest.action?.default_state !== "disabled"
+  ) {
+    failures.push(`${path}: action.default_state must be disabled`);
+  }
   if (!manifest.options_ui) failures.push(`${path}: options_ui missing`);
-  if (!manifest.icons?.["128"]) failures.push(`${path}: 128 icon missing`);
+  for (const size of ["16", "32", "48", "128"]) {
+    const iconPath = manifest.icons?.[size];
+    if (!iconPath) {
+      failures.push(`${path}: ${size} icon missing`);
+      continue;
+    }
+    if (!iconPath.endsWith(".png")) failures.push(`${path}: ${size} icon must be a PNG`);
+    try {
+      if (!statSync(join(dirname(path), iconPath)).isFile())
+        failures.push(`${path}: ${size} icon file missing`);
+    } catch {
+      failures.push(`${path}: ${size} icon file missing`);
+    }
+  }
 
   const permissions = new Set(manifest.permissions ?? []);
   for (const permission of ["activeTab", "downloads", "storage"]) {
@@ -51,8 +73,10 @@ for (const target of targets) {
   }
 
   if (target === "firefox-mv2") {
-    const required = manifest.browser_specific_settings?.gecko?.data_collection_permissions?.required ?? [];
-    if (!required.includes("none")) failures.push(`${path}: Firefox data_collection_permissions.required must include none`);
+    const required =
+      manifest.browser_specific_settings?.gecko?.data_collection_permissions?.required ?? [];
+    if (!required.includes("none"))
+      failures.push(`${path}: Firefox data_collection_permissions.required must include none`);
   }
 }
 

@@ -15,19 +15,39 @@ for (const store of stores) {
       continue;
     }
     const text = readFileSync(path, "utf8");
-    if (/password|secret|submission token|api key/i.test(text)) failures.push(`${path}: contains credentialed submission language`);
+    if (/password|secret|submission token|api key/i.test(text))
+      failures.push(`${path}: contains credentialed submission language`);
   }
   const metadata = JSON.parse(readFileSync(join(dir, "metadata.json"), "utf8")) as {
     target: string;
     status: string;
     categories: string[];
+    icon?: string;
+    socialPreview?: string;
   };
   if (metadata.target !== store) failures.push(`${dir}/metadata.json: target mismatch`);
   if (!metadata.categories.length) failures.push(`${dir}/metadata.json: categories missing`);
+  for (const [key, path] of Object.entries({
+    icon: metadata.icon,
+    socialPreview: metadata.socialPreview
+  })) {
+    if (!path) {
+      failures.push(`${dir}/metadata.json: ${key} missing`);
+      continue;
+    }
+    try {
+      if (!statSync(path).isFile()) failures.push(`${dir}/metadata.json: ${key} is not a file`);
+    } catch {
+      failures.push(`${dir}/metadata.json: ${key} asset missing at ${path}`);
+    }
+  }
 }
 
-const researchFiles = readdirSync("packages/web-store/research").filter((file) => file.endsWith(".md"));
-if (researchFiles.length < stores.length) failures.push("web-store research notes must cover each target store");
+const researchFiles = readdirSync("packages/web-store/research").filter((file) =>
+  file.endsWith(".md")
+);
+if (researchFiles.length < stores.length)
+  failures.push("web-store research notes must cover each target store");
 
 if (failures.length > 0) {
   console.error(failures.join("\n"));

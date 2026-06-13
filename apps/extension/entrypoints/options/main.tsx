@@ -4,8 +4,13 @@ import { createRoot } from "react-dom/client";
 import { toast, Toaster } from "sonner";
 import { EXPORT_FORMATS } from "@linkedin-profile-exporter/core/exporters";
 import type { ExportFormat } from "@linkedin-profile-exporter/core/schema";
-import { defaultSettings, settingsSchema, type Settings } from "@linkedin-profile-exporter/core/settings";
+import {
+  defaultSettings,
+  settingsSchema,
+  type Settings
+} from "@linkedin-profile-exporter/core/settings";
 import { Button } from "../../src/components/button";
+import { ProductMark } from "../../src/components/product-mark";
 import "../../src/styles.css";
 import { clearExtractedState, loadSettings, saveSettings } from "../../src/storage";
 
@@ -42,14 +47,22 @@ function OptionsApp() {
     const outputFormats = checked
       ? Array.from(new Set([...current.outputFormats, format]))
       : current.outputFormats.filter((item) => item !== format);
-    return { ...current, outputFormats: outputFormats.length ? outputFormats : current.outputFormats };
+    return {
+      ...current,
+      outputFormats: outputFormats.length ? outputFormats : current.outputFormats
+    };
   }
 
   return (
     <main className="mx-auto max-w-4xl space-y-5 p-6">
-      <header>
-        <h1 className="text-xl font-semibold">Settings</h1>
-        <p className="text-sm text-[#58665f]">Local-only controls for extraction, review, delivery, and diagnostics.</p>
+      <header className="flex items-center gap-3">
+        <ProductMark className="rounded-xl shadow-sm" size={48} />
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold">Settings</h1>
+          <p className="text-sm text-[#58665f]">
+            Local-only controls for extraction, review, delivery, and diagnostics.
+          </p>
+        </div>
       </header>
 
       <section className="rounded-md border border-[#cbd8d1] bg-white p-4">
@@ -86,8 +99,16 @@ function OptionsApp() {
           </label>
         </div>
         <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-          <Toggle checked={settings.autoScroll} label="Scroll before extraction" onChange={(checked) => save((current) => ({ ...current, autoScroll: checked }))} />
-          <Toggle checked={settings.expandShowMore} label="Expand show-more controls" onChange={(checked) => save((current) => ({ ...current, expandShowMore: checked }))} />
+          <Toggle
+            checked={settings.autoScroll}
+            label="Scroll before extraction"
+            onChange={(checked) => save((current) => ({ ...current, autoScroll: checked }))}
+          />
+          <Toggle
+            checked={settings.expandShowMore}
+            label="Expand show-more controls"
+            onChange={(checked) => save((current) => ({ ...current, expandShowMore: checked }))}
+          />
         </div>
       </section>
 
@@ -98,7 +119,12 @@ function OptionsApp() {
           <input
             className="rounded-md border border-[#cbd8d1] p-2"
             value={settings.filenameTemplate}
-            onChange={(event) => setSettings((current) => ({ ...current, filenameTemplate: event.currentTarget.value }))}
+            onChange={(event) =>
+              setSettings((current) => ({
+                ...current,
+                filenameTemplate: event.currentTarget.value
+              }))
+            }
             onBlur={(event) => {
               const filenameTemplate = event.currentTarget.value;
               void save((current) => ({ ...current, filenameTemplate }));
@@ -107,11 +133,18 @@ function OptionsApp() {
         </label>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
           {EXPORT_FORMATS.map((format) => (
-            <Toggle key={format} checked={settings.outputFormats.includes(format)} label={format} onChange={(checked) => save((current) => withFormat(current, format, checked))} />
+            <Toggle
+              key={format}
+              checked={settings.outputFormats.includes(format)}
+              label={format}
+              onChange={(checked) => save((current) => withFormat(current, format, checked))}
+            />
           ))}
         </div>
         <p className="mt-2 text-xs text-[#58665f]">
-          <Download size={13} className="inline align-[-2px]" /> downloads all formats. <Clipboard size={13} className="inline align-[-2px]" /> clipboard supports text formats; XLSX stays download-only.
+          <Download size={13} className="inline align-[-2px]" /> downloads all formats.{" "}
+          <Clipboard size={13} className="inline align-[-2px]" /> clipboard supports text formats;
+          XLSX stays download-only.
         </p>
       </section>
 
@@ -123,7 +156,12 @@ function OptionsApp() {
               key={key}
               checked={value}
               label={labelize(key)}
-              onChange={(checked) => save((current) => ({ ...current, dataScope: { ...current.dataScope, [key]: checked } }))}
+              onChange={(checked) =>
+                save((current) => ({
+                  ...current,
+                  dataScope: { ...current.dataScope, [key]: checked }
+                }))
+              }
             />
           ))}
         </div>
@@ -135,22 +173,65 @@ function OptionsApp() {
           <Toggle
             checked={settings.privacy.persistExtractedData}
             label="Keep extracted profile locally"
-            onChange={(checked) => save((current) => ({ ...current, privacy: { ...current.privacy, persistExtractedData: checked } }))}
+            onChange={(checked) =>
+              save((current) => ({
+                ...current,
+                privacy: { ...current.privacy, persistExtractedData: checked }
+              }))
+            }
           />
           <Toggle
-            checked={settings.diagnostics.includeProvenance}
+            checked={settings.diagnostics.includeAllFields}
+            label="Include all fields"
+            onChange={(checked) =>
+              save((current) => ({
+                ...current,
+                diagnostics: {
+                  ...current.diagnostics,
+                  includeAllFields: checked,
+                  includeConfidence: checked,
+                  includeProvenance: checked,
+                  verbose: checked
+                }
+              }))
+            }
+          />
+          <Toggle
+            checked={
+              settings.diagnostics.includeAllFields || settings.diagnostics.includeProvenance
+            }
+            disabled={settings.diagnostics.includeAllFields}
             label="Include provenance"
-            onChange={(checked) => save((current) => ({ ...current, diagnostics: { ...current.diagnostics, includeProvenance: checked } }))}
+            onChange={(checked) =>
+              save((current) => ({
+                ...current,
+                diagnostics: { ...current.diagnostics, includeProvenance: checked }
+              }))
+            }
           />
           <Toggle
-            checked={settings.diagnostics.includeConfidence}
+            checked={
+              settings.diagnostics.includeAllFields || settings.diagnostics.includeConfidence
+            }
+            disabled={settings.diagnostics.includeAllFields}
             label="Include confidence"
-            onChange={(checked) => save((current) => ({ ...current, diagnostics: { ...current.diagnostics, includeConfidence: checked } }))}
+            onChange={(checked) =>
+              save((current) => ({
+                ...current,
+                diagnostics: { ...current.diagnostics, includeConfidence: checked }
+              }))
+            }
           />
           <Toggle
-            checked={settings.diagnostics.verbose}
+            checked={settings.diagnostics.includeAllFields || settings.diagnostics.verbose}
+            disabled={settings.diagnostics.includeAllFields}
             label="Verbose diagnostics"
-            onChange={(checked) => save((current) => ({ ...current, diagnostics: { ...current.diagnostics, verbose: checked } }))}
+            onChange={(checked) =>
+              save((current) => ({
+                ...current,
+                diagnostics: { ...current.diagnostics, verbose: checked }
+              }))
+            }
           />
         </div>
         <ul className="mt-3 space-y-1 text-xs text-[#58665f]">
@@ -158,7 +239,13 @@ function OptionsApp() {
           <li>Remote upload: {String(settings.privacy.remoteUploadEnabled)}</li>
           <li>Credential storage: false</li>
         </ul>
-        <Button className="mt-4" variant="secondary" onClick={() => void clearExtractedState().then(() => toast.success("Local extracted state cleared"))}>
+        <Button
+          className="mt-4"
+          variant="secondary"
+          onClick={() =>
+            void clearExtractedState().then(() => toast.success("Local extracted state cleared"))
+          }
+        >
           <Trash2 size={16} />
           Clear local extracted data
         </Button>
@@ -168,10 +255,29 @@ function OptionsApp() {
   );
 }
 
-function Toggle({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void | Promise<void> }) {
+function Toggle({
+  checked,
+  disabled = false,
+  label,
+  onChange
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: string;
+  onChange: (checked: boolean) => void | Promise<void>;
+}) {
   return (
-    <label className="flex min-h-10 items-center gap-2 rounded-md border border-[#cbd8d1] bg-[#f8faf8] p-2">
-      <input type="checkbox" checked={checked} onChange={(event) => void onChange(event.currentTarget.checked)} />
+    <label
+      className={`flex min-h-10 items-center gap-2 rounded-md border border-[#cbd8d1] bg-[#f8faf8] p-2 ${
+        disabled ? "opacity-70" : ""
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => void onChange(event.currentTarget.checked)}
+      />
       <Check size={14} className={checked ? "text-[#2f7d64]" : "text-transparent"} />
       <span className="text-sm">{label}</span>
     </label>
@@ -179,7 +285,9 @@ function Toggle({ checked, label, onChange }: { checked: boolean; label: string;
 }
 
 function labelize(value: string): string {
-  return value.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`).replace(/^./, (letter) => letter.toUpperCase());
+  return value
+    .replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`)
+    .replace(/^./, (letter) => letter.toUpperCase());
 }
 
 createRoot(document.getElementById("root")!).render(

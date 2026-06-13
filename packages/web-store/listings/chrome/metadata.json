@@ -2,5 +2,7 @@
   "target": "chrome",
   "status": "source-managed",
   "categories": ["productivity", "developer-tools"],
+  "icon": "assets/icon/linkedin-profile-exporter-icon-128.png",
+  "socialPreview": "assets/social/github-preview.png",
   "submission": "not-in-v0.1.0"
 }

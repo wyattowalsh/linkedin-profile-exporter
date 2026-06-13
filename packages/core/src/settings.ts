@@ -43,18 +43,25 @@ export const settingsSchema = z.object({
     }),
   diagnostics: z
     .object({
-      includeProvenance: z.boolean().default(true),
-      includeConfidence: z.boolean().default(true),
+      includeAllFields: z.boolean().default(false),
+      includeProvenance: z.boolean().default(false),
+      includeConfidence: z.boolean().default(false),
       verbose: z.boolean().default(false)
     })
     .default({
-      includeProvenance: true,
-      includeConfidence: true,
+      includeAllFields: false,
+      includeProvenance: false,
+      includeConfidence: false,
       verbose: false
     })
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
+export type SettingsInput = Partial<Omit<Settings, "dataScope" | "privacy" | "diagnostics">> & {
+  dataScope?: Partial<Settings["dataScope"]>;
+  diagnostics?: Partial<Settings["diagnostics"]>;
+  privacy?: Partial<Settings["privacy"]>;
+};
 
 export const defaultSettings: Settings = settingsSchema.parse({});
 
@@ -62,7 +69,7 @@ export function validateSettings(input: unknown): Settings {
   return settingsSchema.parse(input);
 }
 
-export function normalizeSettings(input?: Partial<Settings>): Settings {
+export function normalizeSettings(input?: SettingsInput): Settings {
   return settingsSchema.parse({
     ...defaultSettings,
     ...input,
@@ -72,7 +79,15 @@ export function normalizeSettings(input?: Partial<Settings>): Settings {
   });
 }
 
-export function applyProfileSettings(profileInput: unknown, settingsInput?: Partial<Settings>): Profile {
+export function shouldIncludeVerboseDiagnostics(settingsInput?: SettingsInput): boolean {
+  const settings = normalizeSettings(settingsInput);
+  return settings.diagnostics.includeAllFields || settings.diagnostics.verbose;
+}
+
+export function applyProfileSettings(
+  profileInput: unknown,
+  settingsInput?: SettingsInput
+): Profile {
   const profile = profileSchema.parse(profileInput);
   const settings = normalizeSettings(settingsInput);
   const filtered: Profile = structuredClone(profile);
@@ -82,10 +97,23 @@ export function applyProfileSettings(profileInput: unknown, settingsInput?: Part
     filenameTemplate: settings.filenameTemplate
   };
 
+  const includeProvenance =
+    settings.diagnostics.includeAllFields || settings.diagnostics.includeProvenance;
+  const includeConfidence =
+    settings.diagnostics.includeAllFields || settings.diagnostics.includeConfidence;
+
   if (!settings.dataScope.identity) {
-    filtered.identity = { name: filtered.identity.name, profileUrl: filtered.identity.profileUrl, links: [] };
-    if (settings.diagnostics.includeProvenance && profile.identity.provenance) filtered.identity.provenance = profile.identity.provenance;
-    if (settings.diagnostics.includeConfidence && typeof profile.identity.confidence === "number") filtered.identity.confidence = profile.identity.confidence;
+    filtered.identity = {
+      name: filtered.identity.name,
+      profileUrl: filtered.identity.profileUrl,
+      links: []
+    };
+    if (includeProvenance && profile.identity.provenance) {
+      filtered.identity.provenance = profile.identity.provenance;
+    }
+    if (includeConfidence && typeof profile.identity.confidence === "number") {
+      filtered.identity.confidence = profile.identity.confidence;
+    }
   }
   if (!settings.dataScope.imageryMetadata) delete filtered.identity.imagery;
   if (!settings.dataScope.experience) filtered.work = [];
@@ -97,6 +125,8 @@ export function applyProfileSettings(profileInput: unknown, settingsInput?: Part
     filtered.publications = [];
     filtered.volunteering = [];
     filtered.honorsAwards = [];
+    filtered.testScores = [];
+    filtered.patents = [];
     filtered.languages = [];
     filtered.courses = [];
     filtered.recommendations = [];
@@ -105,17 +135,23 @@ export function applyProfileSettings(profileInput: unknown, settingsInput?: Part
     filtered.interests = [];
   }
 
-  if (!settings.diagnostics.includeProvenance || !settings.diagnostics.includeConfidence) {
+  if (!includeProvenance || !includeConfidence) {
     stripFieldMetadata(filtered, {
-      provenance: !settings.diagnostics.includeProvenance,
-      confidence: !settings.diagnostics.includeConfidence
+      provenance: !includeProvenance,
+      confidence: !includeConfidence
     });
+  }
+  if (!settings.diagnostics.includeAllFields && !settings.diagnostics.verbose) {
+    filtered.diagnostics = [];
   }
 
   return profileSchema.parse(filtered);
 }
 
-function stripFieldMetadata(value: unknown, strip: { provenance: boolean; confidence: boolean }): void {
+function stripFieldMetadata(
+  value: unknown,
+  strip: { provenance: boolean; confidence: boolean }
+): void {
   if (!value || typeof value !== "object") return;
   if (Array.isArray(value)) {
     for (const item of value) stripFieldMetadata(item, strip);

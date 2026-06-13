@@ -1,4 +1,14 @@
-import { AlertCircle, Check, CheckCircle2, Clipboard, Download, FileText, RefreshCcw, Settings, Trash2, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  Clipboard,
+  Download,
+  RefreshCcw,
+  Settings,
+  Trash2,
+  XCircle
+} from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import type { ReadinessResult } from "@linkedin-profile-exporter/core/extraction";
@@ -9,6 +19,7 @@ import { blockedClipboardFormats, formatsForDelivery } from "../profile-delivery
 import { isTextExportFormat } from "../export-download";
 import { cn } from "../lib/utils";
 import { Button } from "./button";
+import { ProductMark } from "./product-mark";
 
 interface ProfileExporterPanelProps {
   busy: boolean;
@@ -43,9 +54,11 @@ export function ProfileExporterPanel({
 }: ProfileExporterPanelProps) {
   const selectedFormats = settings.outputFormats;
   const deliverableFormats = formatsForDelivery(settings.deliveryMode, selectedFormats);
-  const copyBlockedFormats = settings.deliveryMode === "clipboard" ? blockedClipboardFormats(selectedFormats) : [];
+  const copyBlockedFormats =
+    settings.deliveryMode === "clipboard" ? blockedClipboardFormats(selectedFormats) : [];
   const primaryAction = actionMeta(settings.deliveryMode);
-  const actionDisabled = !profile || !deliverableFormats.length;
+  const actionDisabled =
+    busy || !deliverableFormats.length || (!profile && readiness?.state === "unavailable");
   const shellClass = surface === "popup" ? "w-[420px]" : "min-h-screen min-w-[380px]";
   const contentClass = surface === "popup" ? "space-y-3 p-4" : "mx-auto max-w-xl space-y-3 p-4";
   const status = statusMeta(readiness?.state);
@@ -55,16 +68,21 @@ export function ProfileExporterPanel({
       <header className="border-b border-[#d9e0dd] bg-white px-4 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-[#153a35] text-white shadow-sm">
-              <FileText size={18} />
-            </div>
+            <ProductMark className="rounded-lg shadow-sm" size={40} />
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold">Profile Exporter</h1>
-              <p className="mt-0.5 truncate text-xs text-[#5f6d66]">{profile?.identity.name ?? workflowLabel(settings.automationMode)}</p>
+              <p className="mt-0.5 truncate text-xs text-[#5f6d66]">
+                {profile?.identity.name ?? workflowLabel(settings.automationMode)}
+              </p>
             </div>
           </div>
           {onOpenSettings ? (
-            <Button className="h-9 shrink-0 px-2" variant="ghost" title="Open settings" onClick={onOpenSettings}>
+            <Button
+              className="h-9 shrink-0 px-2"
+              variant="ghost"
+              title="Open settings"
+              onClick={onOpenSettings}
+            >
               <Settings size={17} />
               Settings
             </Button>
@@ -73,40 +91,76 @@ export function ProfileExporterPanel({
       </header>
 
       <div className={contentClass}>
-        <motion.section initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-md border border-[#d1dad6] bg-white p-3 shadow-sm">
+        <motion.section
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-md border border-[#d1dad6] bg-white p-3 shadow-sm"
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium", status.className)}>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium",
+                    status.className
+                  )}
+                >
                   {status.icon}
                   {status.label}
                 </span>
-                <span className="truncate text-xs text-[#6a766f]">{deliveryLabel(settings.deliveryMode)}</span>
+                <span className="truncate text-xs text-[#6a766f]">
+                  {deliveryLabel(settings.deliveryMode)}
+                </span>
               </div>
-              <p className="mt-2 line-clamp-2 text-sm leading-5 text-[#46554e]">{readiness?.reason ?? "Checking the active tab."}</p>
+              <p className="mt-2 line-clamp-2 text-sm leading-5 text-[#46554e]">
+                {readiness?.reason ?? "Checking the active tab."}
+              </p>
             </div>
-            <Button className="h-10 shrink-0 px-3" disabled={busy || readiness?.state === "unavailable"} onClick={onExtract}>
+            <Button
+              className="h-10 shrink-0 px-3"
+              disabled={busy || readiness?.state === "unavailable"}
+              onClick={onExtract}
+            >
               <RefreshCcw size={16} className={busy ? "animate-spin" : undefined} />
               {busy ? "Extracting" : "Extract"}
             </Button>
           </div>
         </motion.section>
 
-        {profile ? <ProfileSnapshot profile={profile} /> : <EmptyProfileState extractionError={extractionError} readiness={readiness} />}
+        {profile ? (
+          <ProfileSnapshot profile={profile} />
+        ) : (
+          <EmptyProfileState extractionError={extractionError} readiness={readiness} />
+        )}
 
         <section className="rounded-md border border-[#d1dad6] bg-white p-3 shadow-sm">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Settings</h2>
             {onOpenSettings ? (
-              <Button className="h-8 px-2 text-xs" variant="ghost" title="Open full settings" onClick={onOpenSettings}>
+              <Button
+                className="h-8 px-2 text-xs"
+                variant="ghost"
+                title="Open full settings"
+                onClick={onOpenSettings}
+              >
                 <Settings size={14} />
                 Full
               </Button>
             ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <DeliveryToggle active={settings.deliveryMode === "download"} icon={<Download size={15} />} label="Download" onClick={() => onDeliveryModeChange("download")} />
-            <DeliveryToggle active={settings.deliveryMode === "clipboard"} icon={<Clipboard size={15} />} label="Clipboard" onClick={() => onDeliveryModeChange("clipboard")} />
+          <div aria-label="Delivery mode" className="grid grid-cols-2 gap-2" role="group">
+            <DeliveryToggle
+              active={settings.deliveryMode === "download"}
+              icon={<Download size={15} />}
+              label="Download"
+              onClick={() => onDeliveryModeChange("download")}
+            />
+            <DeliveryToggle
+              active={settings.deliveryMode === "clipboard"}
+              icon={<Clipboard size={15} />}
+              label="Clipboard"
+              onClick={() => onDeliveryModeChange("clipboard")}
+            />
           </div>
         </section>
 
@@ -146,7 +200,12 @@ export function ProfileExporterPanel({
         ) : null}
 
         <footer className="grid grid-cols-[auto_1fr] gap-2">
-          <Button className="size-10 px-0" variant="secondary" title="Clear local profile" onClick={onClear}>
+          <Button
+            className="size-10 px-0"
+            variant="secondary"
+            title="Clear local profile"
+            onClick={onClear}
+          >
             <Trash2 size={16} />
           </Button>
           <Button className="h-10 justify-center" disabled={actionDisabled} onClick={onDeliver}>
@@ -164,19 +223,33 @@ function ProfileSnapshot({ profile }: { profile: Profile }) {
     <section className="rounded-md border border-[#d1dad6] bg-white p-3 shadow-sm">
       <div className="min-w-0">
         <h2 className="truncate text-sm font-semibold">{profile.identity.name}</h2>
-        {profile.identity.headline ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#5f6d66]">{profile.identity.headline}</p> : null}
+        {profile.identity.headline ? (
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#5f6d66]">
+            {profile.identity.headline}
+          </p>
+        ) : null}
       </div>
       <dl className="mt-3 grid grid-cols-4 gap-2">
         <Metric label="Roles" value={profile.work.length} />
         <Metric label="Schools" value={profile.education.length} />
         <Metric label="Skills" value={profile.skills.length} />
-        <Metric label="Notes" value={profile.diagnostics.length} tone={profile.diagnostics.length ? "amber" : "neutral"} />
+        <Metric
+          label="Notes"
+          value={profile.diagnostics.length}
+          tone={profile.diagnostics.length ? "amber" : "neutral"}
+        />
       </dl>
     </section>
   );
 }
 
-function EmptyProfileState({ extractionError, readiness }: { extractionError?: string | undefined; readiness: ReadinessResult | null }) {
+function EmptyProfileState({
+  extractionError,
+  readiness
+}: {
+  extractionError?: string | undefined;
+  readiness: ReadinessResult | null;
+}) {
   if (extractionError) {
     return (
       <section className="rounded-md border border-[#efc0bb] bg-[#fff7f5] px-3 py-4 shadow-sm">
@@ -201,12 +274,25 @@ function EmptyProfileState({ extractionError, readiness }: { extractionError?: s
   );
 }
 
-function DeliveryToggle({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
+function DeliveryToggle({
+  active,
+  icon,
+  label,
+  onClick
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
+      aria-pressed={active}
       className={cn(
-        "inline-flex h-9 items-center justify-center gap-2 rounded-md border px-2 text-xs font-medium transition",
-        active ? "border-[#1f6b54] bg-[#e8f5ef] text-[#174c3c]" : "border-[#d6e0dc] bg-[#f8faf9] text-[#46554e] hover:border-[#8db4a6]"
+        "inline-flex h-9 items-center justify-center gap-2 rounded-md border px-2 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#225c4a]",
+        active
+          ? "border-[#1f6b54] bg-[#e8f5ef] text-[#174c3c]"
+          : "border-[#d6e0dc] bg-[#f8faf9] text-[#46554e] hover:border-[#8db4a6]"
       )}
       type="button"
       onClick={onClick}
@@ -231,22 +317,43 @@ function FormatToggle({
   return (
     <label
       className={cn(
-        "flex h-10 cursor-pointer items-center justify-between gap-1 rounded-md border px-2 text-xs font-medium transition",
-        checked ? "border-[#1f6b54] bg-[#e8f5ef] text-[#174c3c]" : "border-[#d6e0dc] bg-[#f8faf9] text-[#46554e]",
+        "flex h-10 cursor-pointer items-center justify-between gap-1 rounded-md border px-2 text-xs font-medium transition focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#225c4a]",
+        checked
+          ? "border-[#1f6b54] bg-[#e8f5ef] text-[#174c3c]"
+          : "border-[#d6e0dc] bg-[#f8faf9] text-[#46554e]",
         disabled ? "cursor-not-allowed opacity-45" : "hover:border-[#8db4a6]"
       )}
       title={disabled ? "Clipboard supports text formats only" : format}
     >
-      <input className="sr-only" type="checkbox" checked={checked} disabled={disabled} onChange={onChange} />
+      <input
+        className="sr-only"
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+      />
       <span className="truncate">{formatLabel(format)}</span>
       <Check size={13} className={checked ? "opacity-100" : "opacity-0"} />
     </label>
   );
 }
 
-function Metric({ label, value, tone = "neutral" }: { label: string; value: number; tone?: "neutral" | "amber" }) {
+function Metric({
+  label,
+  value,
+  tone = "neutral"
+}: {
+  label: string;
+  value: number;
+  tone?: "neutral" | "amber";
+}) {
   return (
-    <div className={cn("rounded-md border px-2 py-2", tone === "amber" ? "border-[#ead9a6] bg-[#fff8e6]" : "border-[#e0e8e4] bg-[#f7faf9]")}>
+    <div
+      className={cn(
+        "rounded-md border px-2 py-2",
+        tone === "amber" ? "border-[#ead9a6] bg-[#fff8e6]" : "border-[#e0e8e4] bg-[#f7faf9]"
+      )}
+    >
       <dt className="truncate text-[11px] text-[#68766f]">{label}</dt>
       <dd className="mt-0.5 text-base font-semibold leading-none">{value}</dd>
     </div>

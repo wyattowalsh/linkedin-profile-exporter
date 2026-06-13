@@ -2,7 +2,14 @@ import { z } from "zod";
 
 export const SCHEMA_VERSION = "linkedin-profile-exporter.profile.v1" as const;
 
-export const sourceTypeSchema = z.enum(["dom", "client-state", "metadata", "automation", "manual", "fixture"]);
+export const sourceTypeSchema = z.enum([
+  "dom",
+  "client-state",
+  "metadata",
+  "automation",
+  "manual",
+  "fixture"
+]);
 
 export const provenanceSchema = z.object({
   sourceType: sourceTypeSchema,
@@ -43,6 +50,10 @@ export const identitySchema = z.object({
   name: z.string().min(1),
   headline: z.string().optional(),
   location: z.string().optional(),
+  industry: z.string().optional(),
+  connections: z.string().optional(),
+  followers: z.string().optional(),
+  memberUrn: z.string().optional(),
   profileUrl: z.string().url(),
   about: z.string().optional(),
   links: z.array(linkSchema).default([]),
@@ -52,6 +63,8 @@ export const identitySchema = z.object({
 
 export const nestedRoleSchema = z.object({
   title: z.string(),
+  employmentType: z.string().optional(),
+  location: z.string().optional(),
   dates: z.string().optional(),
   description: z.string().optional(),
   ...provenanceFields
@@ -60,9 +73,13 @@ export const nestedRoleSchema = z.object({
 export const workExperienceSchema = z.object({
   company: z.string().optional(),
   title: z.string(),
+  employmentType: z.string().optional(),
   location: z.string().optional(),
   dates: z.string().optional(),
   description: z.string().optional(),
+  companyUrl: z.string().url().optional(),
+  companyLogoUrl: z.string().url().optional(),
+  companyIndustry: z.string().optional(),
   roles: z.array(nestedRoleSchema).default([]),
   ...provenanceFields
 });
@@ -74,6 +91,8 @@ export const educationSchema = z.object({
   dates: z.string().optional(),
   description: z.string().optional(),
   activities: z.string().optional(),
+  schoolUrl: z.string().url().optional(),
+  schoolLogoUrl: z.string().url().optional(),
   ...provenanceFields
 });
 
@@ -86,7 +105,10 @@ export const skillSchema = z.object({
 export const certificationSchema = z.object({
   name: z.string(),
   issuer: z.string().optional(),
+  issuerUrl: z.string().url().optional(),
+  issuerLogoUrl: z.string().url().optional(),
   date: z.string().optional(),
+  credentialId: z.string().optional(),
   credentialUrl: z.string().url().optional(),
   ...provenanceFields
 });
@@ -96,6 +118,8 @@ export const projectSchema = z.object({
   description: z.string().optional(),
   url: z.string().url().optional(),
   dates: z.string().optional(),
+  associatedWith: z.string().optional(),
+  contributors: z.array(z.string()).optional(),
   ...provenanceFields
 });
 
@@ -104,12 +128,17 @@ export const publicationSchema = z.object({
   publisher: z.string().optional(),
   date: z.string().optional(),
   url: z.string().url().optional(),
+  description: z.string().optional(),
+  authors: z.array(z.string()).optional(),
   ...provenanceFields
 });
 
 export const volunteeringSchema = z.object({
   role: z.string().optional(),
   organization: z.string(),
+  organizationUrl: z.string().url().optional(),
+  organizationLogoUrl: z.string().url().optional(),
+  cause: z.string().optional(),
   description: z.string().optional(),
   dates: z.string().optional(),
   ...provenanceFields
@@ -120,6 +149,28 @@ export const honorAwardSchema = z.object({
   issuer: z.string().optional(),
   date: z.string().optional(),
   description: z.string().optional(),
+  associatedWith: z.string().optional(),
+  ...provenanceFields
+});
+
+export const testScoreSchema = z.object({
+  name: z.string(),
+  score: z.string().optional(),
+  date: z.string().optional(),
+  description: z.string().optional(),
+  ...provenanceFields
+});
+
+export const patentSchema = z.object({
+  title: z.string(),
+  issuer: z.string().optional(),
+  patentNumber: z.string().optional(),
+  applicationNumber: z.string().optional(),
+  date: z.string().optional(),
+  url: z.string().url().optional(),
+  description: z.string().optional(),
+  status: z.string().optional(),
+  inventors: z.array(z.string()).default([]),
   ...provenanceFields
 });
 
@@ -131,6 +182,7 @@ export const languageSchema = z.object({
 
 export const courseSchema = z.object({
   name: z.string(),
+  number: z.string().optional(),
   provider: z.string().optional(),
   ...provenanceFields
 });
@@ -144,7 +196,9 @@ export const recommendationSchema = z.object({
 
 export const featuredItemSchema = z.object({
   title: z.string(),
+  type: z.string().optional(),
   url: z.string().url().optional(),
+  imageUrl: z.string().url().optional(),
   description: z.string().optional(),
   ...provenanceFields
 });
@@ -152,15 +206,28 @@ export const featuredItemSchema = z.object({
 export const organizationSchema = z.object({
   name: z.string(),
   role: z.string().optional(),
+  dates: z.string().optional(),
+  description: z.string().optional(),
+  url: z.string().url().optional(),
+  logoUrl: z.string().url().optional(),
   ...provenanceFields
 });
 
 export const interestSchema = z.object({
   name: z.string(),
+  url: z.string().url().optional(),
   ...provenanceFields
 });
 
-export const exportFormatSchema = z.enum(["json", "json-resume", "yaml", "csv", "xlsx", "xml", "markdown"]);
+export const exportFormatSchema = z.enum([
+  "json",
+  "json-resume",
+  "yaml",
+  "csv",
+  "xlsx",
+  "xml",
+  "markdown"
+]);
 
 export const profileSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
@@ -173,6 +240,8 @@ export const profileSchema = z.object({
   publications: z.array(publicationSchema).default([]),
   volunteering: z.array(volunteeringSchema).default([]),
   honorsAwards: z.array(honorAwardSchema).default([]),
+  testScores: z.array(testScoreSchema).default([]),
+  patents: z.array(patentSchema).default([]),
   languages: z.array(languageSchema).default([]),
   courses: z.array(courseSchema).default([]),
   recommendations: z.array(recommendationSchema).default([]),

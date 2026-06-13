@@ -5,6 +5,14 @@ description: Local-explicit privacy controls
 
 # Settings And Privacy
 
-Settings are stored locally. The default settings disable analytics, remote upload, credential storage, and automatic download. Users can choose data scope, automation mode, output formats, filename templates, privacy behavior, whether to persist extracted data, and diagnostics detail.
+Settings are stored locally. The default settings disable analytics, remote upload, credential
+storage, automatic download, extracted-data persistence, and metadata-heavy export fields. Users can
+choose data scope, automation mode, output formats, filename templates, privacy behavior, whether to
+persist extracted data, and diagnostics detail.
+
+Canonical exports omit field provenance, confidence, and diagnostics by default. The Include all
+fields setting is opt-in and includes those fields plus verbose Voyager inventory diagnostics for
+troubleshooting extraction coverage, including section counts, entity type counts, and field-key
+inventory without persisting raw LinkedIn payloads.
 
 The product includes controls to clear local extracted state before another export.

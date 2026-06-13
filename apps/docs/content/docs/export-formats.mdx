@@ -5,6 +5,18 @@ description: Supported local export formats
 
 # Export Formats
 
-The canonical schema exports to JSON, JSON Resume, YAML Resume, flat CSV, XLSX workbook, XML, and compact LLM-context Markdown.
+The canonical schema exports to JSON, JSON Resume, YAML Resume, flat CSV, XLSX workbook, XML, and
+compact LLM-context Markdown. Canonical exports preserve LinkedIn-specific profile sections
+including courses, featured items, organizations, interests, test scores, and patents when Voyager
+provides them. Voyager-backed canonical JSON also preserves grouped work roles, course numbers,
+project contributors, publication authors, volunteer causes, organization details, and featured
+media metadata when those fields are present.
+
+JSON exports are clean by default: provenance, confidence, and diagnostics are omitted unless
+Include all fields is enabled in settings before extraction/export.
+
+Compatibility formats still preserve the canonical data. JSON Resume includes the canonical profile
+under exporter metadata, and Markdown renders every populated canonical repeat section so
+LinkedIn-specific sections are not silently dropped.
 
 PDF export is out of scope for v0.1.0.

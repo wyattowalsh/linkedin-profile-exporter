@@ -146,6 +146,7 @@ packages/bookmarklet/dist/
 playwright-report/
 test-results/
 .vitest/
+.release/
 
 # macOS
 .DS_Store

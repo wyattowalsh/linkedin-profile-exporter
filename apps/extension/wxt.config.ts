@@ -10,20 +10,34 @@ export default defineConfig({
     short_name: "Profile Exporter",
     description: "Extract accessible LinkedIn profile data locally and export structured files.",
     version: "0.1.0",
-    permissions: ["activeTab", "downloads", "storage", ...(browser === "chrome" || browser === "edge" ? ["sidePanel"] : [])],
+    permissions: [
+      "activeTab",
+      "downloads",
+      "storage",
+      ...(browser === "chrome" || browser === "edge" ? ["sidePanel"] : [])
+    ],
     host_permissions: ["https://www.linkedin.com/in/*"],
     action: {
-      default_title: "Export LinkedIn profile"
+      ...(browser === "chrome" || browser === "edge" ? { default_state: "disabled" as const } : {}),
+      default_title: "Open a LinkedIn profile to export",
+      default_icon: {
+        "16": "icon/16.png",
+        "32": "icon/32.png",
+        "48": "icon/48.png"
+      }
     },
     options_ui: {
       page: "options.html",
       open_in_tab: true
     },
-    ...(browser === "chrome" || browser === "edge" ? { side_panel: { default_path: "sidepanel.html" } } : {}),
+    ...(browser === "chrome" || browser === "edge"
+      ? { side_panel: { default_path: "sidepanel.html" } }
+      : {}),
     icons: {
-      "16": "icon/16.svg",
-      "48": "icon/48.svg",
-      "128": "icon/128.svg"
+      "16": "icon/16.png",
+      "32": "icon/32.png",
+      "48": "icon/48.png",
+      "128": "icon/128.png"
     },
     browser_specific_settings: {
       gecko: {

@@ -1,14 +1,76 @@
 {
   "icon": {
-    "path": "assets/icon/linkedin-profile-exporter-icon.svg",
+    "path": "assets/icon/linkedin-profile-exporter-icon.png",
     "width": 512,
     "height": 512,
     "transparent": true,
-    "noTextManualReview": true
+    "noTextManualReview": true,
+    "variants": [
+      {
+        "path": "assets/icon/linkedin-profile-exporter-icon-16.png",
+        "width": 16,
+        "height": 16
+      },
+      {
+        "path": "assets/icon/linkedin-profile-exporter-icon-32.png",
+        "width": 32,
+        "height": 32
+      },
+      {
+        "path": "assets/icon/linkedin-profile-exporter-icon-48.png",
+        "width": 48,
+        "height": 48
+      },
+      {
+        "path": "assets/icon/linkedin-profile-exporter-icon-128.png",
+        "width": 128,
+        "height": 128
+      },
+      {
+        "path": "assets/icon/linkedin-profile-exporter-icon-256.png",
+        "width": 256,
+        "height": 256
+      },
+      {
+        "path": "assets/icon/linkedin-profile-exporter-icon-512.png",
+        "width": 512,
+        "height": 512
+      },
+      {
+        "path": "apps/extension/public/icon/16.png",
+        "width": 16,
+        "height": 16
+      },
+      {
+        "path": "apps/extension/public/icon/32.png",
+        "width": 32,
+        "height": 32
+      },
+      {
+        "path": "apps/extension/public/icon/48.png",
+        "width": 48,
+        "height": 48
+      },
+      {
+        "path": "apps/extension/public/icon/128.png",
+        "width": 128,
+        "height": 128
+      },
+      {
+        "path": "apps/docs/public/icon/linkedin-profile-exporter-icon.png",
+        "width": 512,
+        "height": 512
+      }
+    ]
   },
   "social": [
     {
-      "path": "assets/social/github-preview.svg",
+      "path": "assets/social/github-preview.png",
+      "width": 1280,
+      "height": 640
+    },
+    {
+      "path": "apps/docs/public/social/github-preview.png",
       "width": 1280,
       "height": 640
     }
