@@ -10,5 +10,15 @@
       "collections/*": ["./.source/*"]
     }
   },
-  "include": ["app/**/*.ts", "app/**/*.tsx", "lib/**/*.ts", "scripts/**/*.ts", "source.config.ts", "types/**/*.d.ts", ".source/**/*.ts"]
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "scripts/**/*.ts",
+    "source.config.ts",
+    "types/**/*.d.ts",
+    ".source/**/*.ts"
+  ]
 }

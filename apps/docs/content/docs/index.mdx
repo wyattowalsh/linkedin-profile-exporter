@@ -5,6 +5,36 @@ description: Product overview
 
 # LinkedIn Profile Exporter
 
-LinkedIn Profile Exporter extracts accessible LinkedIn profile data from the current page, validates it through the project-owned canonical schema, and exports local files for review and reuse. The canonical schema keeps LinkedIn-specific sections such as courses, featured items, organizations, interests, test scores, and patents when the page provides them.
+LinkedIn Profile Exporter extracts accessible LinkedIn profile data from the current page, validates
+it through the project-owned canonical schema, and exports local files for review and reuse. The
+canonical schema keeps LinkedIn-specific sections such as courses, featured items, organizations,
+interests, test scores, and patents when the page provides them.
 
-The default product does not upload extracted data, send analytics, require LinkedIn credentials, or use a remote service. Clipboard delivery is available for text formats when users prefer copying over downloading.
+The extension starts from same-page Voyager data when it is available, falls back to embedded page
+state, and finally falls back to deterministic DOM extraction. Each path produces the same
+`linkedin-profile-exporter.profile.v1` object so downstream exports do not need source-specific
+branches.
+
+The default product does not upload extracted data, send analytics, require LinkedIn credentials, or
+use a remote service. Clipboard delivery is available for text formats when users prefer copying
+over downloading.
+
+## Core surfaces
+
+| Surface         | Purpose                                                                        |
+| --------------- | ------------------------------------------------------------------------------ |
+| Extension popup | Fast extract, summary review, format selection, download, and copy actions.    |
+| Side panel      | Persistent review surface for longer profile checks.                           |
+| Options page    | Data scope, automation, delivery, filename, privacy, and diagnostics controls. |
+| Bookmarklet     | Low-friction fallback for compatible pages and fixture workflows.              |
+| Release packet  | Credential-free GitHub Release assets and store-review material.               |
+
+## Extraction contract
+
+The canonical profile has stable top-level sections for identity, work, education, skills,
+certifications, projects, publications, volunteering, honors, test scores, patents, languages,
+courses, recommendations, featured items, organizations, interests, metadata, diagnostics, and
+export metadata.
+
+Clean exports are the default. Enable **Include all fields** only when you need provenance,
+confidence, and verbose diagnostics for extraction assurance.

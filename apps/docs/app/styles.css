@@ -1,28 +1,73 @@
+@import "tailwindcss";
+@import "fumadocs-ui/style.css";
+
 :root {
   color-scheme: light;
+  --background: #f7faf8;
+  --foreground: #17201b;
+  --muted: #5f6d66;
+  --accent: #225c4a;
+  --accent-strong: #174536;
+  --border: #d8e1dc;
   font-family:
-    "MonaspiceNe Nerd Font", "Monaspace Neon", Inter, ui-sans-serif, system-ui, sans-serif;
-  background: #f8faf8;
-  color: #17201b;
+    "MonaspiceNe Nerd Font", "Monaspace Neon", "Geist", "Aptos", ui-sans-serif, system-ui,
+    sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
 }
 
 body {
   margin: 0;
+  min-width: 320px;
+  background:
+    linear-gradient(90deg, rgba(34, 92, 74, 0.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(34, 92, 74, 0.04) 1px, transparent 1px), var(--background);
+  background-size: 44px 44px;
 }
 
-.docs-home {
-  max-width: 760px;
+a:not([class]) {
+  color: var(--accent);
+  text-underline-offset: 4px;
+}
+
+a:not([class]):hover {
+  color: var(--accent-strong);
+}
+
+code,
+pre {
+  font-family:
+    "MonaspiceNe Nerd Font", "Monaspace Neon", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.docs-home-shell {
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+}
+
+.docs-home-inner {
+  width: min(1180px, 100%);
   margin: 0 auto;
-  padding: 64px 24px;
 }
 
 .docs-home-mark {
   display: block;
-  width: 112px;
-  height: 112px;
-  margin-bottom: 24px;
+  width: 72px;
+  height: 72px;
 }
 
-a {
-  color: #225c4a;
+.docs-kicker {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }

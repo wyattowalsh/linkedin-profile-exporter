@@ -13,6 +13,7 @@ function SidePanelApp() {
       <ProfileExporterPanel
         busy={controller.busy}
         extractionError={controller.extractionError}
+        extractionStatus={controller.extractionStatus}
         fallbackText={controller.fallbackText}
         onClear={() => void controller.clearLocal()}
         onDeliver={() => void controller.deliverCurrentProfile()}

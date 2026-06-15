@@ -12,7 +12,7 @@
   "scripts": {
     "setup": "pnpm install",
     "openspec": "pnpm dlx @fission-ai/openspec@latest validate --all --json",
-    "lint": "eslint . --max-warnings 0 && tsx scripts/check/no-disallowed-patterns.ts && pnpm check:assets && pnpm check:store && pnpm check:docs && pnpm check:release",
+    "lint": "eslint . --max-warnings 0 && tsx scripts/check/no-disallowed-patterns.ts && pnpm check:assets && pnpm check:store && pnpm check:docs && pnpm check:release && pnpm check:profile-output",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --pretty false",
@@ -24,6 +24,7 @@
     "check:assets": "tsx scripts/check/assets.ts",
     "check:docs": "tsx scripts/check/docs.ts",
     "check:manifests": "tsx scripts/check/manifests.ts",
+    "check:profile-output": "tsx scripts/check/profile-output.ts",
     "check:release": "tsx scripts/check/release.ts",
     "check:store": "tsx scripts/check/store.ts",
     "release:github:package": "tsx scripts/release/github-release-assets.ts",
@@ -31,7 +32,10 @@
     "ci": "pnpm run quick && pnpm run build:extension && pnpm run check:manifests && pnpm run test:e2e && git diff --check"
   },
   "devDependencies": {
+    "@linkedin-profile-exporter/core": "workspace:*",
+    "@linkedin-profile-exporter/fixtures": "workspace:*",
     "@playwright/test": "1.60.0",
+    "@types/jsdom": "^28.0.3",
     "@types/node": "25.9.1",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",

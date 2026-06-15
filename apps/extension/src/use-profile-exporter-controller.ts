@@ -3,7 +3,9 @@ import { toast } from "sonner";
 import type { ReadinessResult } from "@linkedin-profile-exporter/core/extraction";
 import type { ExportFormat, Profile } from "@linkedin-profile-exporter/core/schema";
 import { defaultSettings, type Settings } from "@linkedin-profile-exporter/core/settings";
-import { sendToActiveProfileTab } from "./active-tab";
+import { browser } from "wxt/browser";
+import { activeProfileTabReadiness, sendToActiveProfileTab } from "./active-tab";
+import type { ExtractionStatus, RuntimeMessage } from "./messaging";
 import { deliverProfileFormats, formatsForDelivery } from "./profile-delivery";
 import {
   clearExtractedState,
@@ -13,7 +15,7 @@ import {
   saveSettings
 } from "./storage";
 
-const EXTRACT_PROFILE_TIMEOUT_MS = 8_000;
+const EXTRACT_PROFILE_TIMEOUT_MS = 10_000;
 
 export function useProfileExporterController() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -22,17 +24,37 @@ export function useProfileExporterController() {
   const [busy, setBusy] = useState(false);
   const [fallbackText, setFallbackText] = useState("");
   const [extractionError, setExtractionError] = useState("");
+  const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus | null>(null);
   const clearLocalPromiseRef = useRef<Promise<void>>(Promise.resolve());
+  const extractionRequestIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     void loadSettings()
       .then(setSettings)
       .catch(() => setSettings(defaultSettings));
     void loadExtractedProfile().then(setProfile);
-    void sendToActiveProfileTab({ type: "profile-readiness" }).then((response) => {
-      if (response.ok && "readiness" in response) setReadiness(response.readiness);
-      else if (!response.ok) setReadiness({ state: "needs-action", reason: response.error });
-    });
+
+    void activeProfileTabReadiness()
+      .then((activeReadiness) => {
+        setReadiness(activeReadiness);
+        if (activeReadiness.state === "unavailable") return null;
+        return sendToActiveProfileTab({ type: "profile-readiness" });
+      })
+      .then((response) => {
+        if (!response) return;
+        if (response.ok && "readiness" in response) setReadiness(response.readiness);
+        else if (!response.ok) setReadiness({ state: "needs-action", reason: response.error });
+      })
+      .catch(() => undefined);
+
+    const handleRuntimeMessage = (message: RuntimeMessage) => {
+      if (message.type !== "extraction-status") return undefined;
+      if (message.status.requestId !== extractionRequestIdRef.current) return undefined;
+      setExtractionStatus(message.status);
+      return undefined;
+    };
+    browser.runtime.onMessage.addListener(handleRuntimeMessage);
+    return () => browser.runtime.onMessage.removeListener(handleRuntimeMessage);
   }, []);
 
   async function extract() {
@@ -54,20 +76,40 @@ export function useProfileExporterController() {
     setBusy(true);
     setFallbackText("");
     setExtractionError("");
+    const requestId = createExtractionRequestId();
+    extractionRequestIdRef.current = requestId;
+    setExtractionStatus({
+      detail: "Confirming the active LinkedIn tab.",
+      label: "Checking profile",
+      phase: "checking-readiness",
+      requestId
+    });
 
     try {
       const response = await withTimeout(
-        sendToActiveProfileTab({ type: "extract-profile", settings }),
+        sendToActiveProfileTab({ type: "extract-profile", requestId, settings }),
         EXTRACT_PROFILE_TIMEOUT_MS,
         "LinkedIn profile extraction timed out. Reload the profile tab, then try again."
       );
 
       if (!response.ok) {
+        setExtractionStatus({
+          detail: response.error,
+          label: "Extraction failed",
+          phase: "failed",
+          requestId
+        });
         setExtractionError(response.error);
         toast.error(response.error);
         return null;
       }
       if ("profile" in response) {
+        setExtractionStatus({
+          detail: "Profile data is ready for review.",
+          label: "Extraction complete",
+          phase: "complete",
+          requestId
+        });
         setProfile(response.profile);
         await saveExtractedProfile(response.profile, settings);
         toast.success(
@@ -80,10 +122,19 @@ export function useProfileExporterController() {
       return null;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      setExtractionStatus({
+        detail: message,
+        label: "Extraction failed",
+        phase: "failed",
+        requestId
+      });
       setExtractionError(message);
       toast.error(message);
       return null;
     } finally {
+      if (extractionRequestIdRef.current === requestId) {
+        extractionRequestIdRef.current = null;
+      }
       setBusy(false);
     }
   }
@@ -142,6 +193,7 @@ export function useProfileExporterController() {
     setProfile(null);
     setFallbackText("");
     setExtractionError("");
+    setExtractionStatus(null);
     const clearLocalPromise = clearExtractedState();
     clearLocalPromiseRef.current = clearLocalPromise;
     await clearLocalPromise;
@@ -170,6 +222,7 @@ export function useProfileExporterController() {
     clearLocal,
     deliverCurrentProfile,
     extractionError,
+    extractionStatus,
     extract,
     fallbackText,
     profile,
@@ -178,6 +231,10 @@ export function useProfileExporterController() {
     toggleFormat,
     updateDeliveryMode
   };
+}
+
+function createExtractionRequestId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `extract-${Date.now()}-${Math.random()}`;
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {

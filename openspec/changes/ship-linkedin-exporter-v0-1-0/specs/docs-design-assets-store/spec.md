@@ -13,6 +13,24 @@ release packaging.
 - **THEN** docs pages, metadata, sitemap, and LLM docs artifacts are generated or
   validated.
 
+#### Scenario: Install and data-model docs
+
+- **WHEN** a user reads the README or install docs
+- **THEN** official pnpm install guidance, common browser local-install paths, and the
+  canonical profile data model are documented without requiring live LinkedIn
+  credentials.
+
+### Requirement: README badges
+
+The repository README SHALL include compact ShieldCN-style badges for dynamic repository
+state and static technology labels with corresponding icons.
+
+#### Scenario: Badge validation
+
+- **WHEN** badge image URLs are checked
+- **THEN** CI/license badges and non-dynamic technology badges resolve without requiring
+  repository secrets or generated badge assets.
+
 ### Requirement: Design system documentation
 
 The repository SHALL include `DESIGN.md` describing typography, color, iconography,

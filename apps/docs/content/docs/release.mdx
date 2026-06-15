@@ -5,19 +5,45 @@ description: Release validation and store materials
 
 # Release
 
-Release readiness requires OpenSpec validation, lint, typecheck, tests, docs checks, asset checks, store material checks, extension builds, manifest checks, and final git whitespace/status audit.
+Release readiness requires OpenSpec validation, lint, typecheck, tests, docs checks, profile-output
+assurance, asset checks, store material checks, extension builds, manifest checks, and final git
+whitespace/status audit.
+
+## Required checks
+
+```bash
+pnpm openspec
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm check:profile-output
+pnpm build:extension
+pnpm check:manifests
+pnpm test:e2e
+git diff --check
+```
+
+`pnpm lint` includes `pnpm check:profile-output` so routine release validation proves the canonical
+profile fixture, clean default settings, `includeAllFields`, and every export format.
 
 ## GitHub Release packet
 
-GitHub Releases are the canonical public artifact handoff for v0.1.0. Build and validate the repo first, then package draft-release assets:
+GitHub Releases are the canonical public artifact handoff for v0.1.0. Build and validate the repo
+first, then package draft-release assets:
 
 ```bash
 mise exec node@24 -- just ci
 mise exec node@24 -- pnpm release:github:package
 ```
 
-The package command writes browser ZIPs, the bookmarklet package, a Firefox source-review ZIP, checksums, release notes, and a draft `gh release create` command under `.release/github/v0.1.0/`. Review the generated notes and assets before running the generated command.
+The package command writes browser ZIPs, the bookmarklet package, a Firefox source-review ZIP,
+checksums, release notes, and a draft `gh release create` command under `.release/github/v0.1.0/`.
+Review the generated notes and assets before running the generated command.
 
-The generated `gh release create` command uses `--draft` and `--verify-tag`; the release tag must already exist on the remote so the command cannot create a release from an unintended commit.
+The generated `gh release create` command uses `--draft` and `--verify-tag`; the release tag must
+already exist on the remote so the command cannot create a release from an unintended commit.
 
-Credentialed web-store submissions are not part of v0.1.0 unless explicitly requested later. Keep Chrome Web Store, Microsoft Edge Add-ons, Firefox AMO, and Safari/App Store Connect submission steps separate from the GitHub Release packet.
+Credentialed web-store submissions are not part of v0.1.0 unless explicitly requested later. Keep
+Chrome Web Store, Microsoft Edge Add-ons, Firefox AMO, and Safari/App Store Connect submission steps
+separate from the GitHub Release packet.

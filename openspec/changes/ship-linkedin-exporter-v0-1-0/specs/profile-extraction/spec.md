@@ -66,6 +66,24 @@ rescanning until completion criteria are met.
 - **THEN** the extractor clicks available controls, rescans content, and records
   automation diagnostics.
 
+### Requirement: Responsive bounded extraction
+
+The browser extension SHALL keep profile extraction responsive by reporting extraction
+phases, bounding LinkedIn internal API probing, and falling back to accessible page
+content when internal profile JSON is unavailable.
+
+#### Scenario: Extraction status progresses
+
+- **WHEN** extraction starts from the popup or side panel
+- **THEN** the UI reports readiness, page preparation, embedded data, LinkedIn data,
+  page fallback, completion, or failure statuses for the active request.
+
+#### Scenario: Voyager probing is bounded
+
+- **WHEN** same-page Voyager endpoints are unavailable, slow, or reject the request
+- **THEN** endpoint count, per-request timeout, and total Voyager budget prevent long
+  waits before DOM fallback extraction.
+
 ### Requirement: Provenance and confidence
 
 Every extracted field that is synthesized from the page SHALL be able to carry source

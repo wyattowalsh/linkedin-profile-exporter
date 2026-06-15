@@ -5,6 +5,37 @@ description: Local installation paths
 
 # Install
 
-Use the WXT extension build for Chrome, Edge, Firefox, and Safari packaging paths. Safari uses the WXT Safari output plus the documented Xcode wrapper path. Mobile Safari and mobile Chrome support are documented as platform-constrained packaging paths.
+LinkedIn Profile Exporter is distributed as local browser-extension artifacts and a bookmarklet
+package. Install Node `>=22.12.0` and pnpm first. The official pnpm install guide is available at
+[pnpm.io/installation](https://pnpm.io/installation).
 
-The bookmarklet package provides a low-friction fallback for local fixture pages and compatible LinkedIn page contexts.
+```bash
+pnpm install
+pnpm --filter @linkedin-profile-exporter/extension build:chrome
+```
+
+## Browser targets
+
+| Browser         | Build command                                                      | Local install flow                                                                                                                         |
+| --------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Chrome/Chromium | `pnpm --filter @linkedin-profile-exporter/extension build:chrome`  | Open `chrome://extensions`, enable Developer Mode, choose Load unpacked, and select `apps/extension/.output/chrome-mv3`.                   |
+| Microsoft Edge  | `pnpm --filter @linkedin-profile-exporter/extension build:edge`    | Open `edge://extensions`, enable Developer Mode, choose Load unpacked, and select `apps/extension/.output/edge-mv3`.                       |
+| Firefox         | `pnpm --filter @linkedin-profile-exporter/extension build:firefox` | Open `about:debugging#/runtime/this-firefox`, choose Load Temporary Add-on, and select `apps/extension/.output/firefox-mv2/manifest.json`. |
+| Safari          | `pnpm --filter @linkedin-profile-exporter/extension build:safari`  | Use the WXT Safari output with Apple’s Safari Web Extension packaging flow in Xcode before device or store testing.                        |
+
+Official references:
+[Chrome load unpacked](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world),
+[Microsoft Edge sideloading](https://learn.microsoft.com/en-us/microsoft-edge/extensions/getting-started/extension-sideloading),
+[Firefox temporary installation](https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/),
+and
+[Safari Web Extension packaging](https://developer.apple.com/documentation/safariservices/packaging-a-web-extension-for-safari).
+
+Fresh Playwright machines need the Chromium runtime before E2E:
+
+```bash
+pnpm exec playwright install --with-deps chromium
+pnpm test:e2e
+```
+
+The bookmarklet package provides a low-friction fallback for local fixture pages and compatible
+LinkedIn page contexts.

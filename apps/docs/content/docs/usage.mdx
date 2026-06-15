@@ -9,5 +9,29 @@ Open a LinkedIn profile page, run extraction from the extension popup or side pa
 captured profile summary, choose export formats, and download or copy local exports based on the
 delivery setting. Review-before-export is the default workflow.
 
-The Include all fields setting adds diagnostics for readiness state, section coverage, provenance,
-confidence, and automation notes when those details are needed for troubleshooting.
+## Recommended flow
+
+1. Open a `https://www.linkedin.com/in/...` profile tab.
+2. Wait for the toolbar action to enable and show the `ON` badge.
+3. Open the popup or side panel.
+4. Click **Extract** and watch the phase label move through readiness, page prep, embedded data,
+   Voyager data, and fallback if needed.
+5. Review the summary counts before delivery.
+6. Choose output formats and download or copy the selected exports.
+
+## Readiness states
+
+| State        | Meaning                                                          | Next action                                       |
+| ------------ | ---------------------------------------------------------------- | ------------------------------------------------- |
+| Ready        | The active or fallback profile tab can be read.                  | Extract or deliver.                               |
+| Needs action | The profile page is open but content is still loading or hidden. | Wait, scroll, expand sections, or reload the tab. |
+| Unavailable  | No active LinkedIn profile tab was found.                        | Open a profile page, then reopen the popup.       |
+
+## Slowness and errors
+
+Voyager API attempts are bounded so one slow LinkedIn internal endpoint does not block the export.
+When Voyager data is unavailable, the extension records a warning diagnostic and uses the page
+fallback instead of failing the whole flow.
+
+Use **Include all fields** only for troubleshooting. It adds readiness diagnostics, section
+coverage, provenance, confidence, and Voyager inventory details.

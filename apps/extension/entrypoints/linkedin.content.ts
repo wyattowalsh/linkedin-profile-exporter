@@ -11,7 +11,12 @@ import {
 } from "@linkedin-profile-exporter/core/settings";
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
-import type { RuntimeMessage, RuntimeResponse } from "../src/messaging";
+import type {
+  ExtractionPhase,
+  ExtractionStatus,
+  RuntimeMessage,
+  RuntimeResponse
+} from "../src/messaging";
 
 interface VoyagerEndpoint {
   source: string;
@@ -45,6 +50,10 @@ interface VoyagerCandidateEvaluation {
 const DASH_FULL_PROFILE_DECORATION =
   "com.linkedin.voyager.dash.deco.identity.profile.FullProfileWithEntities-93";
 const IDENTITY_DASH_PROFILES_QUERY_PREFIX = "voyagerIdentityDashProfiles.";
+const PROFILE_READINESS_TIMEOUT_MS = 800;
+const VOYAGER_ENDPOINT_LIMIT = 6;
+const VOYAGER_FETCH_TIMEOUT_MS = 2_500;
+const VOYAGER_TOTAL_TIMEOUT_MS = 5_500;
 
 export default defineContentScript({
   matches: ["https://www.linkedin.com/in/*"],
@@ -53,25 +62,47 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener(
       (message: RuntimeMessage): Promise<RuntimeResponse> | undefined => {
         if (message.type === "profile-readiness") {
-          return waitForProfileContent().then(() => ({
+          return waitForProfileContent(PROFILE_READINESS_TIMEOUT_MS).then(() => ({
             ok: true as const,
             readiness: detectLinkedInProfileReadiness(document)
           }));
         }
         if (message.type === "extract-profile") {
+          const requestId = message.requestId ?? createExtractionRequestId();
+          reportExtractionStatus(
+            requestId,
+            "checking-readiness",
+            "Checking profile",
+            "Confirming the active LinkedIn tab."
+          );
           return waitForProfileContent()
             .then(assertProfileReady)
-            .then(() => prepareAccessibleSections(message.settings))
+            .then(() => {
+              reportExtractionStatus(
+                requestId,
+                "preparing-page",
+                "Preparing profile page",
+                "Opening accessible profile sections."
+              );
+              return prepareAccessibleSections(message.settings);
+            })
             .then(assertProfileReady)
-            .then(() => extractProfile(message.settings))
-            .then((profile) => ({
-              ok: true as const,
-              profile: applyProfileSettings(profile, message.settings)
-            }))
-            .catch((error: unknown) => ({
-              ok: false,
-              error: error instanceof Error ? error.message : String(error)
-            }));
+            .then(() => extractProfile(message.settings, requestId))
+            .then((profile) => {
+              reportExtractionStatus(requestId, "complete", "Extraction complete");
+              return {
+                ok: true as const,
+                profile: applyProfileSettings(profile, message.settings)
+              };
+            })
+            .catch((error: unknown) => {
+              const message = error instanceof Error ? error.message : String(error);
+              reportExtractionStatus(requestId, "failed", "Extraction failed", message);
+              return {
+                ok: false,
+                error: message
+              };
+            });
         }
         return undefined;
       }
@@ -79,14 +110,32 @@ export default defineContentScript({
   }
 });
 
-async function extractProfile(settings: Settings): Promise<Profile> {
+async function extractProfile(settings: Settings, requestId: string): Promise<Profile> {
   const attempts: VoyagerAttempt[] = [];
   const verboseDiagnostics = shouldIncludeVerboseDiagnostics(settings);
+  reportExtractionStatus(
+    requestId,
+    "reading-embedded-data",
+    "Reading page data",
+    "Checking embedded LinkedIn profile state."
+  );
   const embedded = extractViaEmbeddedVoyagerState(attempts, verboseDiagnostics);
   if (embedded) return embedded;
 
+  reportExtractionStatus(
+    requestId,
+    "reading-linkedin-data",
+    "Reading LinkedIn data",
+    "Trying same-page internal profile JSON."
+  );
   const voyager = await extractViaVoyagerApi(attempts, verboseDiagnostics);
   if (voyager) return voyager;
+  reportExtractionStatus(
+    requestId,
+    "using-page-fallback",
+    "Using page fallback",
+    "Reading accessible profile text from the page."
+  );
   const profile = extractProfileFromDocument(document, { settings });
   profile.diagnostics.push({
     code: "linkedin-voyager.unavailable",
@@ -137,12 +186,24 @@ async function extractViaVoyagerApi(
 ): Promise<Profile | null> {
   const profileId = profileIdFromLocation();
   if (!profileId) return null;
+  const deadline = Date.now() + VOYAGER_TOTAL_TIMEOUT_MS;
 
   for (const endpoint of voyagerEndpoints(profileId)) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) {
+      attempts.push({
+        source: "linkedin-voyager.api",
+        reason: "same-page internal API budget elapsed"
+      });
+      break;
+    }
     try {
-      const profilePayload = await voyagerFetch(endpoint.path);
+      const profilePayload = await voyagerFetch(endpoint.path, remainingMs);
+      const supplementalTimeoutMs = Math.max(250, deadline - Date.now());
       const supplementalPayloads = await Promise.all(
-        (endpoint.supplementalPaths ?? []).map(voyagerFetchOptional)
+        (endpoint.supplementalPaths ?? []).map((path) =>
+          voyagerFetchOptional(path, supplementalTimeoutMs)
+        )
       );
       const evaluation = evaluateVoyagerCandidate(profilePayload, {
         profileId,
@@ -165,30 +226,46 @@ async function extractViaVoyagerApi(
   return null;
 }
 
-async function voyagerFetchOptional(path: string): Promise<unknown | null> {
+async function voyagerFetchOptional(path: string, timeoutMs: number): Promise<unknown | null> {
   try {
-    return await voyagerFetch(path);
+    return await voyagerFetch(path, timeoutMs);
   } catch {
     return null;
   }
 }
 
-async function voyagerFetch(path: string): Promise<unknown> {
+async function voyagerFetch(path: string, timeoutMs = VOYAGER_FETCH_TIMEOUT_MS): Promise<unknown> {
   const csrfToken = csrfTokenFromCookie();
   if (!csrfToken) throw new Error("LinkedIn session CSRF token is unavailable.");
 
   const url = path.startsWith("https://") ? path : `https://www.linkedin.com/voyager/api${path}`;
-  const response = await fetch(url, {
-    credentials: "include",
-    headers: {
-      accept: "application/vnd.linkedin.normalized+json+2.1",
-      "csrf-token": csrfToken,
-      "x-restli-protocol-version": "2.0.0"
-    },
-    method: "GET",
-    mode: "cors",
-    referrer: document.location.href
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(
+    () => controller.abort(),
+    Math.min(timeoutMs, VOYAGER_FETCH_TIMEOUT_MS)
+  );
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      credentials: "include",
+      headers: {
+        accept: "application/vnd.linkedin.normalized+json+2.1",
+        "csrf-token": csrfToken,
+        "x-restli-protocol-version": "2.0.0"
+      },
+      method: "GET",
+      mode: "cors",
+      referrer: document.location.href,
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("LinkedIn internal API timed out.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
   if (!response.ok) {
     const error = new Error(`LinkedIn internal API returned ${response.status}.`) as Error & {
       status?: number;
@@ -199,10 +276,31 @@ async function voyagerFetch(path: string): Promise<unknown> {
   return response.json();
 }
 
+function reportExtractionStatus(
+  requestId: string,
+  phase: ExtractionPhase,
+  label: string,
+  detail?: string
+): void {
+  const status: ExtractionStatus = detail
+    ? { detail, label, phase, requestId }
+    : { label, phase, requestId };
+  void browser.runtime
+    .sendMessage({
+      type: "extraction-status",
+      status
+    } satisfies RuntimeMessage)
+    .catch(() => undefined);
+}
+
+function createExtractionRequestId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `extract-${Date.now()}-${Math.random()}`;
+}
+
 function voyagerEndpoints(profileId: string): VoyagerEndpoint[] {
   const encodedProfileId = encodeURIComponent(profileId);
   return uniqueEndpoints([
-    ...voyagerEndpointsFromPerformance(profileId),
+    ...voyagerEndpointsFromPerformance(profileId).slice(0, VOYAGER_ENDPOINT_LIMIT),
     {
       source: "linkedin-voyager.dashFullProfileWithEntities",
       path: `/identity/dash/profiles?q=memberIdentity&memberIdentity=${encodedProfileId}&decorationId=${DASH_FULL_PROFILE_DECORATION}`
@@ -670,7 +768,7 @@ function isSafeExpansionButton(control: HTMLButtonElement): boolean {
   return control.getClientRects().length > 0;
 }
 
-async function waitForProfileContent(timeoutMs = 3500): Promise<void> {
+async function waitForProfileContent(timeoutMs = 2000): Promise<void> {
   if (detectLinkedInProfileReadiness(document).state === "ready") return;
   if (!document.body) await delay(50);
   if (detectLinkedInProfileReadiness(document).state === "ready") return;

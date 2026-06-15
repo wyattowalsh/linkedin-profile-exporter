@@ -33,6 +33,19 @@ formats, configure automation, download exported files, and clear local extracte
 - **WHEN** the popup receives a ready profile state and extraction succeeds
 - **THEN** the user can preview a summary, select formats, and request downloads.
 
+#### Scenario: Extraction progress and fallback
+
+- **WHEN** profile extraction is requested
+- **THEN** the popup or side panel reports request-scoped extraction phases for
+  readiness, page preparation, embedded data, LinkedIn internal data, fallback
+  extraction, completion, and failures.
+
+#### Scenario: Bounded internal API reads
+
+- **WHEN** LinkedIn internal profile JSON requests are unavailable, blocked, or slow
+- **THEN** the extension bounds each internal fetch, records the attempt reason, and
+  falls back to deterministic page extraction instead of waiting indefinitely.
+
 #### Scenario: Toolbar action active state
 
 - **WHEN** the active tab is a LinkedIn profile page

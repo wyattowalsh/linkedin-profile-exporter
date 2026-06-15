@@ -16,3 +16,37 @@ troubleshooting extraction coverage, including section counts, entity type count
 inventory without persisting raw LinkedIn payloads.
 
 The product includes controls to clear local extracted state before another export.
+
+## Defaults
+
+| Setting area | Default                                                                                   | Reason                                                                      |
+| ------------ | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Data scope   | Identity, experience, education, skills, extended sections, and imagery metadata enabled. | Capture the full useful profile model when the page provides it.            |
+| Automation   | Review before export.                                                                     | Prevent accidental downloads while still preparing accessible sections.     |
+| Delivery     | Download.                                                                                 | Avoid clipboard-size and binary-format limits.                              |
+| Privacy      | Local only, analytics off, remote upload off, extracted-data persistence off.             | Keep profile content in the browser unless the user explicitly saves files. |
+| Diagnostics  | Include all fields off.                                                                   | Keep routine exports clean and smaller.                                     |
+
+## Include all fields
+
+Enable **Include all fields** when you are validating extraction coverage, debugging missing
+sections, or comparing Voyager and DOM behavior. It preserves:
+
+| Field family | Included detail                                                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Provenance   | Source type, source name, selector when available, capture time, and notes.                                                   |
+| Confidence   | Per-field confidence scores from parser paths that can estimate certainty.                                                    |
+| Diagnostics  | Readiness, hidden-section notes, Voyager parse results, section inventory, table-of-contents inventory, and entity inventory. |
+
+Disable it again for routine exports. Default exports strip diagnostics, provenance, and confidence
+before format delivery.
+
+`pnpm check:profile-output` validates those defaults against the synthetic Voyager fixture. Passing
+a local exported JSON path validates that file too, while printing only aggregate section counts,
+diagnostic codes, and export byte sizes.
+
+## Local state
+
+When extracted-data persistence is off, profile content is held for the current browser workflow and
+can be cleared from the panel. When persistence is enabled, the extension stores the last extracted
+profile in browser extension storage so the side panel can reopen with the previous review state.

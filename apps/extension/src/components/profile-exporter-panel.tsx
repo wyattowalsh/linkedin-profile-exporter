@@ -18,12 +18,14 @@ import type { Settings as ProfileSettings } from "@linkedin-profile-exporter/cor
 import { blockedClipboardFormats, formatsForDelivery } from "../profile-delivery";
 import { isTextExportFormat } from "../export-download";
 import { cn } from "../lib/utils";
+import type { ExtractionStatus } from "../messaging";
 import { Button } from "./button";
 import { ProductMark } from "./product-mark";
 
 interface ProfileExporterPanelProps {
   busy: boolean;
   extractionError?: string | undefined;
+  extractionStatus?: ExtractionStatus | null;
   fallbackText?: string;
   onClear: () => void;
   onDeliver: () => void;
@@ -40,6 +42,7 @@ interface ProfileExporterPanelProps {
 export function ProfileExporterPanel({
   busy,
   extractionError,
+  extractionStatus,
   fallbackText,
   onClear,
   onDeliver,
@@ -61,7 +64,14 @@ export function ProfileExporterPanel({
     busy || !deliverableFormats.length || (!profile && readiness?.state === "unavailable");
   const shellClass = surface === "popup" ? "w-[420px]" : "min-h-screen min-w-[380px]";
   const contentClass = surface === "popup" ? "space-y-3 p-4" : "mx-auto max-w-xl space-y-3 p-4";
-  const status = statusMeta(readiness?.state);
+  const status =
+    busy && extractionStatus
+      ? extractionStatusMeta(extractionStatus)
+      : statusMeta(readiness?.state);
+  const statusDescription =
+    busy && extractionStatus
+      ? (extractionStatus.detail ?? readiness?.reason ?? "Extracting this profile locally.")
+      : (readiness?.reason ?? "Checking the active tab.");
 
   return (
     <main className={cn(shellClass, "bg-[#f4f6f7] text-[#17201b]")}>
@@ -100,6 +110,7 @@ export function ProfileExporterPanel({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span
+                  aria-live="polite"
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium",
                     status.className
@@ -113,7 +124,7 @@ export function ProfileExporterPanel({
                 </span>
               </div>
               <p className="mt-2 line-clamp-2 text-sm leading-5 text-[#46554e]">
-                {readiness?.reason ?? "Checking the active tab."}
+                {statusDescription}
               </p>
             </div>
             <Button
@@ -386,6 +397,28 @@ function statusMeta(state: "ready" | "unavailable" | "needs-action" | undefined)
     label: "Needs Action",
     className: "border-[#e7d29a] bg-[#fff7df] text-[#76561a]",
     icon: <AlertCircle size={13} />
+  };
+}
+
+function extractionStatusMeta(status: ExtractionStatus) {
+  if (status.phase === "complete") {
+    return {
+      label: status.label,
+      className: "border-[#a8d5c3] bg-[#eaf7f1] text-[#14543f]",
+      icon: <CheckCircle2 size={13} />
+    };
+  }
+  if (status.phase === "failed") {
+    return {
+      label: status.label,
+      className: "border-[#efc0bb] bg-[#fff1ef] text-[#8a332b]",
+      icon: <XCircle size={13} />
+    };
+  }
+  return {
+    label: status.label,
+    className: "border-[#a8c6e8] bg-[#edf6ff] text-[#17466f]",
+    icon: <RefreshCcw size={13} className="animate-spin" />
   };
 }
 

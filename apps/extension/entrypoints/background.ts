@@ -38,6 +38,7 @@ type ActionApi = {
   disable?: (tabId?: number) => Promise<void> | void;
   enable?: (tabId?: number) => Promise<void> | void;
   setBadgeBackgroundColor?: (details: ActionDetails & { color: string }) => Promise<void> | void;
+  setBadgeTextColor?: (details: ActionDetails & { color: string }) => Promise<void> | void;
   setBadgeText?: (details: ActionDetails & { text: string }) => Promise<void> | void;
   setTitle?: (details: ActionDetails & { title: string }) => Promise<void> | void;
 };
@@ -69,6 +70,10 @@ async function updateActionStateForTab(tabId: number, url?: string): Promise<voi
     callAction(action, "setBadgeBackgroundColor", {
       tabId,
       color: profileActive ? "#0a66c2" : "#66736d"
+    }),
+    callAction(action, "setBadgeTextColor", {
+      tabId,
+      color: "#ffffff"
     })
   ]);
 }
@@ -83,7 +88,7 @@ function actionApi(): ActionApi | undefined {
 
 async function callAction<TDetails extends ActionDetails>(
   action: ActionApi,
-  method: "setBadgeBackgroundColor" | "setBadgeText" | "setTitle",
+  method: "setBadgeBackgroundColor" | "setBadgeText" | "setBadgeTextColor" | "setTitle",
   details: TDetails
 ): Promise<void> {
   await action[method]?.(details as never);

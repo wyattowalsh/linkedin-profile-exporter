@@ -19,4 +19,27 @@ Compatibility formats still preserve the canonical data. JSON Resume includes th
 under exporter metadata, and Markdown renders every populated canonical repeat section so
 LinkedIn-specific sections are not silently dropped.
 
+## Canonical data model
+
+| Area        | Fields                                                                                                                                       |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity    | Name, headline, location, industry, connection/follower text, member URN, profile URL, about, links, profile image, and background image.    |
+| Work        | Company, title, employment type, location, dates, description, company URL/logo/industry, and nested grouped roles.                          |
+| Education   | School, degree, field, dates, activities, description, school URL, and school logo.                                                          |
+| Credentials | Skills, endorsements, licenses, issuers, credential IDs/URLs, courses, languages, and test scores.                                           |
+| Portfolio   | Projects, contributors, publications, authors, featured media, patents, honors, volunteering, organizations, interests, and recommendations. |
+| Metadata    | Capture timestamp, source URL, locale, generator, selected formats, filename template, diagnostics, provenance, and confidence when enabled. |
+
+## Format behavior
+
+| Format      | Behavior                                                                                       |
+| ----------- | ---------------------------------------------------------------------------------------------- |
+| JSON        | Canonical profile object, clean by default.                                                    |
+| JSON Resume | JSON Resume-compatible projection with the canonical profile embedded under exporter metadata. |
+| YAML        | YAML rendering of the JSON Resume-compatible projection.                                       |
+| CSV         | Flat field rows across every repeat section.                                                   |
+| XLSX        | Workbook with one worksheet per canonical section.                                             |
+| XML         | Full canonical profile rendered as XML.                                                        |
+| Markdown    | Compact LLM-context document with every populated canonical repeat section.                    |
+
 PDF export is out of scope for v0.1.0.
