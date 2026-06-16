@@ -19,6 +19,7 @@ export default defineConfig({
     host_permissions: ["https://www.linkedin.com/in/*"],
     action: {
       ...(browser === "chrome" || browser === "edge" ? { default_state: "disabled" as const } : {}),
+      default_popup: "popup.html",
       default_title: "Open a LinkedIn profile to export",
       default_icon: {
         "16": "icon/16.png",

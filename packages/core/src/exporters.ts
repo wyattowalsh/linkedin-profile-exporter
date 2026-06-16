@@ -221,13 +221,13 @@ export function exportMarkdown(profileInput: unknown): string {
     "---",
     "",
     `# ${profile.identity.name}`,
-    profile.identity.headline ?? "",
-    profile.identity.location ?? "",
+    profile.identity.headline ? formatMarkdownText(profile.identity.headline) : "",
+    profile.identity.location ? formatMarkdownText(profile.identity.location) : "",
     "",
     "---",
     "",
     "## About",
-    profile.identity.about ?? "No accessible about text captured.",
+    formatMarkdownText(profile.identity.about ?? "No accessible about text captured."),
     "",
     "## Experience",
     ...profile.work.map((item) => `- ${formatRecordSummary(item, ["title", "company", "dates"])}`),
@@ -295,23 +295,35 @@ function formatRecordSummary(
     .flatMap((key) => {
       const value = item[key];
       if (value === undefined) return [];
-      return [`${labelize(key)}: ${formatMarkdownValue(value)}`];
+      const formatted = formatMarkdownValue(value);
+      return formatted ? [`${labelize(key)}: ${formatted}`] : [];
     })
     .join("; ");
 }
 
 function formatMarkdownValue(value: unknown): string {
   if (Array.isArray(value)) {
-    return value.map(formatMarkdownValue).join(", ");
+    const separator = value.some((item) => item && typeof item === "object") ? " | " : ", ";
+    return value.map(formatMarkdownValue).filter(Boolean).join(separator);
   }
   if (value && typeof value === "object") {
-    return JSON.stringify(value);
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([key, entry]) => entry !== undefined && key !== "provenance" && key !== "confidence")
+      .flatMap(([key, entry]) => {
+        const formatted = formatMarkdownValue(entry);
+        return formatted ? [`${labelize(key)}: ${formatted}`] : [];
+      })
+      .join(", ");
   }
-  return String(value);
+  return formatMarkdownText(String(value));
 }
 
 function labelize(value: string): string {
   return value.replace(/([A-Z])/g, " $1").replace(/^./, (character) => character.toUpperCase());
+}
+
+function formatMarkdownText(value: string): string {
+  return value.replace(/([a-z0-9][.!?])(?=[A-Z][a-z]+(?:\s|$))/g, "$1 ");
 }
 
 function flatten(

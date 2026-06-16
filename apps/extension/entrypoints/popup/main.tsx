@@ -11,7 +11,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={client}>
       <PopupApp />
-      <Toaster position="bottom-center" />
+      <Toaster position="top-center" />
     </QueryClientProvider>
   </StrictMode>
 );

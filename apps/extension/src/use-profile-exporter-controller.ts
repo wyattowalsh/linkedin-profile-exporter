@@ -4,7 +4,8 @@ import type { ReadinessResult } from "@linkedin-profile-exporter/core/extraction
 import type { ExportFormat, Profile } from "@linkedin-profile-exporter/core/schema";
 import { defaultSettings, type Settings } from "@linkedin-profile-exporter/core/settings";
 import { browser } from "wxt/browser";
-import { activeProfileTabReadiness, sendToActiveProfileTab } from "./active-tab";
+import { sendToActiveProfileTab } from "./active-tab";
+import { createExtractionRequestId } from "./extraction-request-id";
 import type { ExtractionStatus, RuntimeMessage } from "./messaging";
 import { deliverProfileFormats, formatsForDelivery } from "./profile-delivery";
 import {
@@ -34,14 +35,8 @@ export function useProfileExporterController() {
       .catch(() => setSettings(defaultSettings));
     void loadExtractedProfile().then(setProfile);
 
-    void activeProfileTabReadiness()
-      .then((activeReadiness) => {
-        setReadiness(activeReadiness);
-        if (activeReadiness.state === "unavailable") return null;
-        return sendToActiveProfileTab({ type: "profile-readiness" });
-      })
+    void sendToActiveProfileTab({ type: "profile-readiness" })
       .then((response) => {
-        if (!response) return;
         if (response.ok && "readiness" in response) setReadiness(response.readiness);
         else if (!response.ok) setReadiness({ state: "needs-action", reason: response.error });
       })
@@ -231,10 +226,6 @@ export function useProfileExporterController() {
     toggleFormat,
     updateDeliveryMode
   };
-}
-
-function createExtractionRequestId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `extract-${Date.now()}-${Math.random()}`;
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {

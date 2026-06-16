@@ -15,10 +15,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Separator } from "../components/ui/separator";
 
 const quickLinks = [
-  { href: "/docs/install", label: "Install", icon: Download },
-  { href: "/docs/usage", label: "Use", icon: BadgeCheck },
-  { href: "/docs/export-formats", label: "Exports", icon: FileJson },
-  { href: "/docs/settings-privacy", label: "Privacy", icon: LockKeyhole }
+  {
+    href: "/docs/install",
+    label: "Install",
+    description: "Build browser artifacts and load them locally.",
+    icon: Download
+  },
+  {
+    href: "/docs/usage",
+    label: "Use",
+    description: "Extract, review, and deliver local exports.",
+    icon: BadgeCheck
+  },
+  {
+    href: "/docs/export-formats",
+    label: "Exports",
+    description: "Compare schema sections and output formats.",
+    icon: FileJson
+  },
+  {
+    href: "/docs/settings-privacy",
+    label: "Privacy",
+    description: "Understand clean defaults and opt-in diagnostics.",
+    icon: LockKeyhole
+  }
 ];
 
 const modelSections = [
@@ -125,9 +145,7 @@ export default function Page() {
             >
               <item.icon aria-hidden="true" />
               <p className="mt-4 text-sm font-semibold">{item.label}</p>
-              <p className="mt-1 text-sm leading-6 text-zinc-600">
-                {quickLinkDescription(item.label)}
-              </p>
+              <p className="mt-1 text-sm leading-6 text-zinc-600">{item.description}</p>
             </a>
           ))}
         </section>
@@ -226,19 +244,4 @@ function InfoCard({
       </CardContent>
     </Card>
   );
-}
-
-function quickLinkDescription(label: string): string {
-  switch (label) {
-    case "Install":
-      return "Build browser artifacts and load them locally.";
-    case "Use":
-      return "Extract, review, and deliver local exports.";
-    case "Exports":
-      return "Compare schema sections and output formats.";
-    case "Privacy":
-      return "Understand clean defaults and opt-in diagnostics.";
-    default:
-      return "Open documentation.";
-  }
 }

@@ -204,6 +204,32 @@ describe("extraction", () => {
     ).toBe(true);
   });
 
+  it("normalizes joined sentence boundaries from DOM and Voyager text", () => {
+    const html = denseProfileHtml.replace(
+      "I build local-first tools that turn messy browser workflows into structured, reviewable data.",
+      "Fast extraction.Most exports stay local."
+    );
+    expect(extractProfileFromHtml(html).identity.about).toBe(
+      "Fast extraction. Most exports stay local."
+    );
+
+    const payload = structuredClone(voyagerProfilePayload) as unknown as {
+      included: Array<Record<string, unknown>>;
+    };
+    const profileEntity = payload.included.find(
+      (item) => item.$type === "com.linkedin.voyager.identity.profile.Profile"
+    );
+    if (!profileEntity) throw new Error("Voyager profile fixture entity missing");
+    profileEntity.summary = "Fast extraction.Most exports stay local.";
+
+    const profile = extractProfileFromVoyagerPayload(payload, {
+      now: fixedNow,
+      supplementalPayloads: [structuredClone(voyagerSupplementalSkillsPayload)],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(profile.identity.about).toBe("Fast extraction. Most exports stay local.");
+  });
+
   it("continues when embedded client state has an unsupported shape", () => {
     const html = denseProfileHtml.replace(
       '"skills": [{ "name": "Schema Design", "endorsements": 8 }]',
@@ -562,6 +588,8 @@ describe("exporters", () => {
     expect(markdown).toContain("---\nschema:");
     expect(markdown).toContain("## Licenses Certifications");
     expect(markdown).toContain("Credential Id: CERT-PRIVACY-1");
+    expect(markdown).toContain("Roles: Title: Engineering Manager");
+    expect(markdown).not.toContain('{"title"');
     expect(markdown).toContain("## Projects");
     expect(markdown).toContain("Contributors: Alex Rivera, Taylor Morgan");
     expect(markdown).toContain("## Featured");

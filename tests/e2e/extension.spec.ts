@@ -36,6 +36,22 @@ test("extension pages render and options persist locally", async ({ page, extens
   await page.goto(`chrome-extension://${extensionId}/options.html`);
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByLabel("Include all fields")).not.toBeChecked();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const manifest = chrome.runtime.getManifest() as {
+          action?: { default_popup?: string };
+          browser_action?: { default_popup?: string };
+          page_action?: { default_popup?: string };
+        };
+        return (
+          manifest.action?.default_popup ??
+          manifest.browser_action?.default_popup ??
+          manifest.page_action?.default_popup
+        );
+      })
+    )
+    .toBe("popup.html");
 
   await page.getByLabel("Delivery").selectOption("clipboard");
   await page.getByLabel("Keep extracted profile locally").check();
@@ -125,6 +141,7 @@ test("toolbar action activates on LinkedIn profile tabs", async ({ context, exte
     .toMatchObject({
       badgeText: "IN",
       enabled: true,
+      popup: expect.stringContaining("popup.html"),
       title: "Export this LinkedIn profile"
     });
 
@@ -1040,7 +1057,7 @@ async function sendTabMessage(
 async function actionStateForTab(
   extensionWorker: Worker,
   tabId: number
-): Promise<{ badgeText: string; enabled: boolean; title: string }> {
+): Promise<{ badgeText: string; enabled: boolean; popup: string; title: string }> {
   return extensionWorker.evaluate(async (id) => {
     const chromeApi = (globalThis as typeof globalThis & { chrome: any }).chrome;
     const action = chromeApi.action;
@@ -1049,55 +1066,27 @@ async function actionStateForTab(
       method: (...args: any[]) => Promise<T> | void,
       arg: any
     ) => {
-      const withTimeout = (operation: () => Promise<T>) =>
-        new Promise<T>((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error(`${label} did not resolve`)), 10_000);
-          operation().then(
-            (value) => {
-              clearTimeout(timeout);
-              resolve(value);
-            },
-            (error: unknown) => {
-              clearTimeout(timeout);
-              reject(error instanceof Error ? error : new Error(String(error)));
-            }
-          );
-        });
-
-      const callbackAction = (initialError?: unknown) =>
-        new Promise<T>((resolve, reject) => {
-          const timeout = setTimeout(
-            () => reject(initialError ?? new Error(`${label} did not resolve`)),
-            10_000
-          );
-          const finish = (value: T) => {
-            clearTimeout(timeout);
-            resolve(value);
-          };
-          const fail = (error: unknown) => {
-            clearTimeout(timeout);
-            reject(error instanceof Error ? error : new Error(String(error)));
-          };
-          try {
-            method(arg, (value: T) => {
-              const error = chromeApi.runtime.lastError;
-              if (error) fail(new Error(error.message));
-              else finish(value);
-            });
-          } catch (error) {
-            fail(initialError ?? error);
-          }
-        });
-
-      return withTimeout(async () => {
+      return new Promise<T>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error(`${label} did not resolve`)), 10_000);
+        const finish = (value: T) => {
+          clearTimeout(timeout);
+          resolve(value);
+        };
+        const fail = (error: unknown) => {
+          clearTimeout(timeout);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        };
         try {
-          const maybePromise = method(arg);
+          const maybePromise = method(arg, (value: T) => {
+            const error = chromeApi.runtime.lastError;
+            if (error) fail(new Error(error.message));
+            else finish(value);
+          });
           if (maybePromise && typeof maybePromise.then === "function") {
-            return await maybePromise;
+            maybePromise.then(finish, fail);
           }
-          return await callbackAction();
         } catch (error) {
-          return await callbackAction(error);
+          fail(error);
         }
       });
     };
@@ -1106,6 +1095,9 @@ async function actionStateForTab(
         tabId: id
       }),
       enabled: await callAction<boolean>("action.isEnabled", action.isEnabled.bind(action), id),
+      popup: await callAction<string>("action.getPopup", action.getPopup.bind(action), {
+        tabId: id
+      }),
       title: await callAction<string>("action.getTitle", action.getTitle.bind(action), {
         tabId: id
       })

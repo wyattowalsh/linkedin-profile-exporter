@@ -24,6 +24,14 @@ for (const doc of requiredDocs) {
   }
   const text = readFileSync(path, "utf8");
   if (!text.includes("title:")) failures.push(`${path}: missing frontmatter title`);
+  if (doc === "usage.mdx") {
+    if (!text.includes("show the `IN` badge")) {
+      failures.push(`${path}: active toolbar badge text must document the IN badge`);
+    }
+    if (text.includes("show the `ON` badge")) {
+      failures.push(`${path}: stale active toolbar badge text documents ON instead of IN`);
+    }
+  }
 }
 
 for (const path of [

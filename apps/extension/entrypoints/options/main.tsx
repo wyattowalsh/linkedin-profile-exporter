@@ -250,7 +250,7 @@ function OptionsApp() {
           Clear local extracted data
         </Button>
       </section>
-      <Toaster position="bottom-center" />
+      <Toaster position="top-center" />
     </main>
   );
 }

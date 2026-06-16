@@ -1,11 +1,12 @@
 import { detectLinkedInProfileReadiness } from "@linkedin-profile-exporter/core/extraction";
-import type { ReadinessResult } from "@linkedin-profile-exporter/core/extraction";
 import { browser } from "wxt/browser";
 import type { RuntimeMessage, RuntimeResponse } from "./messaging";
 
 type ProfileTargetTab = {
+  active?: boolean | undefined;
   id?: number | undefined;
   url?: string | undefined;
+  windowId?: number | undefined;
 };
 
 export async function sendToActiveProfileTab(message: RuntimeMessage): Promise<RuntimeResponse> {
@@ -30,26 +31,19 @@ export async function sendToActiveProfileTab(message: RuntimeMessage): Promise<R
   }
 }
 
-export async function activeProfileTabReadiness(): Promise<ReadinessResult> {
-  const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
-  const tab = await profileTabForMessage(activeTab);
-  return detectLinkedInProfileReadiness(tab?.url ?? "");
-}
-
 async function profileTabForMessage(activeTab: ProfileTargetTab | undefined) {
   if (activeTab?.url && !isExtensionPage(activeTab.url)) return activeTab;
+  const tabs = await browser.tabs.query({});
+  const profileTabs = tabs.filter(
+    (tab) => detectLinkedInProfileReadiness(tab.url ?? "").state !== "unavailable"
+  );
   return (
-    (await firstProfileTab({ active: true, currentWindow: true })) ??
-    (await firstProfileTab({ active: true })) ??
-    (await firstProfileTab({ currentWindow: true })) ??
-    (await firstProfileTab({})) ??
+    profileTabs.find((tab) => tab.active && tab.windowId === activeTab?.windowId) ??
+    profileTabs.find((tab) => tab.active) ??
+    profileTabs.find((tab) => tab.windowId === activeTab?.windowId) ??
+    profileTabs[0] ??
     activeTab
   );
-}
-
-async function firstProfileTab(query: Parameters<typeof browser.tabs.query>[0]) {
-  const tabs = await browser.tabs.query(query);
-  return tabs.find((tab) => detectLinkedInProfileReadiness(tab.url ?? "").state !== "unavailable");
 }
 
 function isExtensionPage(url: string | undefined): boolean {

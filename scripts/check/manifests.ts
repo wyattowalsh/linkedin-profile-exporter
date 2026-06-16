@@ -4,6 +4,11 @@ import { dirname, join } from "node:path";
 const targets = ["chrome-mv3", "edge-mv3", "firefox-mv2", "safari-mv2"];
 const failures: string[] = [];
 
+interface ManifestAction {
+  default_popup?: string;
+  default_state?: string;
+}
+
 for (const target of targets) {
   const path = join("apps/extension/.output", target, "manifest.json");
   try {
@@ -23,11 +28,9 @@ for (const target of targets) {
     permissions?: string[];
     host_permissions?: string[];
     content_scripts?: unknown[];
-    action?: {
-      default_state?: string;
-    };
-    page_action?: unknown;
-    browser_action?: unknown;
+    action?: ManifestAction;
+    page_action?: ManifestAction;
+    browser_action?: ManifestAction;
     options_ui?: unknown;
     icons?: Record<string, string>;
     browser_specific_settings?: {
@@ -43,8 +46,10 @@ for (const target of targets) {
   if (!manifest.version) failures.push(`${path}: version missing`);
   if (!manifest.manifest_version) failures.push(`${path}: manifest_version missing`);
   if (!manifest.content_scripts?.length) failures.push(`${path}: content scripts missing`);
-  if (!manifest.action && !manifest.page_action && !manifest.browser_action)
-    failures.push(`${path}: action/page_action missing`);
+  const manifestAction = manifest.action ?? manifest.page_action ?? manifest.browser_action;
+  if (!manifestAction) failures.push(`${path}: action/page_action missing`);
+  else if (manifestAction.default_popup !== "popup.html")
+    failures.push(`${path}: action default_popup must be popup.html`);
   if (
     (target === "chrome-mv3" || target === "edge-mv3") &&
     manifest.action?.default_state !== "disabled"

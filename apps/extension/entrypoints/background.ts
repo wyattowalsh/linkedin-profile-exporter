@@ -4,13 +4,13 @@ import { profileToDownload } from "../src/export-download";
 import type { RuntimeMessage, RuntimeResponse } from "../src/messaging";
 
 export default defineBackground(() => {
-  void updateActionStateForActiveTab();
+  void updateActionStateForActiveTab().catch(reportActionStateError);
   browser.tabs.onActivated.addListener(({ tabId }) => {
-    void updateActionStateForTab(tabId);
+    void updateActionStateForTab(tabId).catch(reportActionStateError);
   });
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (!tab.active && !changeInfo.url) return;
-    void updateActionStateForTab(tabId, tab.url ?? changeInfo.url);
+    void updateActionStateForTab(tabId, tab.url ?? changeInfo.url).catch(reportActionStateError);
   });
 
   browser.runtime.onMessage.addListener(
@@ -53,29 +53,29 @@ async function updateActionStateForTab(tabId: number, url?: string): Promise<voi
   const action = actionApi();
   if (!action) return;
 
-  const tabUrl =
-    url ??
-    (await browser.tabs
-      .get(tabId)
-      .then((tab) => tab.url)
-      .catch(() => undefined));
+  const tabUrl = url ?? (await tabUrlForActionUpdate(tabId));
+  if (tabUrl === null) return;
   const profileActive = isLinkedInProfileUrl(tabUrl);
-  await Promise.all([
-    callTabAction(action, profileActive ? "enable" : "disable", tabId),
-    callAction(action, "setBadgeText", { tabId, text: profileActive ? "IN" : "" }),
-    callAction(action, "setTitle", {
-      tabId,
-      title: profileActive ? "Export this LinkedIn profile" : "Open a LinkedIn profile to export"
-    }),
-    callAction(action, "setBadgeBackgroundColor", {
-      tabId,
-      color: profileActive ? "#0a66c2" : "#66736d"
-    }),
-    callAction(action, "setBadgeTextColor", {
-      tabId,
-      color: "#ffffff"
-    })
-  ]);
+  try {
+    await Promise.all([
+      callTabAction(action, profileActive ? "enable" : "disable", tabId),
+      callAction(action, "setBadgeText", { tabId, text: profileActive ? "IN" : "" }),
+      callAction(action, "setTitle", {
+        tabId,
+        title: profileActive ? "Export this LinkedIn profile" : "Open a LinkedIn profile to export"
+      }),
+      callAction(action, "setBadgeBackgroundColor", {
+        tabId,
+        color: profileActive ? "#0a66c2" : "#66736d"
+      }),
+      callAction(action, "setBadgeTextColor", {
+        tabId,
+        color: "#ffffff"
+      })
+    ]);
+  } catch (error) {
+    if (!isMissingTabError(error)) throw error;
+  }
 }
 
 function actionApi(): ActionApi | undefined {
@@ -104,4 +104,23 @@ async function callTabAction(
 
 function isLinkedInProfileUrl(url: string | undefined): boolean {
   return Boolean(url && /^https:\/\/www\.linkedin\.com\/in\/[^/?#]+\/?/i.test(url));
+}
+
+async function tabUrlForActionUpdate(tabId: number): Promise<string | undefined | null> {
+  try {
+    return (await browser.tabs.get(tabId)).url;
+  } catch (error) {
+    if (isMissingTabError(error)) return null;
+    throw error;
+  }
+}
+
+function reportActionStateError(error: unknown): void {
+  if (isMissingTabError(error)) return;
+  console.error("Unable to update LinkedIn Profile Exporter action state.", error);
+}
+
+function isMissingTabError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /No tab with id:/i.test(message);
 }

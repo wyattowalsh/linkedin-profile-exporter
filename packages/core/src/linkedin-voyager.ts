@@ -397,7 +397,9 @@ export function extractProfileFromVoyagerPayload(
       followers: socialCountLabel(profileEntity, "follower"),
       memberUrn: stringValue(profileEntity.entityUrn),
       profileUrl: profileUrl ?? "https://www.linkedin.com/in/unknown/",
-      about: stringValue(profileEntity.summary) ?? stringValue(profileEntity.multiLocaleSummary),
+      about:
+        sentenceTextValue(profileEntity.summary) ??
+        sentenceTextValue(profileEntity.multiLocaleSummary),
       links: linksFromProfileEntity(profileEntity),
       imagery: identityImagery(profileEntity, profileMini),
       provenance: provenance("identity"),
@@ -1226,6 +1228,10 @@ function stringValue(value: unknown): string | undefined {
     stringValue(record.name) ??
     stringValue(Object.values(record).find((item) => typeof item === "string"))
   );
+}
+
+function sentenceTextValue(value: unknown): string | undefined {
+  return stringValue(value)?.replace(/([a-z0-9][.!?])(?=[A-Z][a-z]+(?:\s|$))/g, "$1 ");
 }
 
 function urlValue(value: unknown): string | undefined {

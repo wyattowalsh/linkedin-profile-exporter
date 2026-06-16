@@ -25,7 +25,7 @@ function SidePanelApp() {
         settings={controller.settings}
         surface="sidepanel"
       />
-      <Toaster position="bottom-center" />
+      <Toaster position="top-center" />
     </>
   );
 }

@@ -17,6 +17,7 @@ import type {
   RuntimeMessage,
   RuntimeResponse
 } from "../src/messaging";
+import { createExtractionRequestId } from "../src/extraction-request-id";
 
 interface VoyagerEndpoint {
   source: string;
@@ -77,16 +78,6 @@ export default defineContentScript({
           );
           return waitForProfileContent()
             .then(assertProfileReady)
-            .then(() => {
-              reportExtractionStatus(
-                requestId,
-                "preparing-page",
-                "Preparing profile page",
-                "Opening accessible profile sections."
-              );
-              return prepareAccessibleSections(message.settings);
-            })
-            .then(assertProfileReady)
             .then(() => extractProfile(message.settings, requestId))
             .then((profile) => {
               reportExtractionStatus(requestId, "complete", "Extraction complete");
@@ -113,23 +104,27 @@ export default defineContentScript({
 async function extractProfile(settings: Settings, requestId: string): Promise<Profile> {
   const attempts: VoyagerAttempt[] = [];
   const verboseDiagnostics = shouldIncludeVerboseDiagnostics(settings);
-  reportExtractionStatus(
-    requestId,
-    "reading-embedded-data",
-    "Reading page data",
-    "Checking embedded LinkedIn profile state."
-  );
-  const embedded = extractViaEmbeddedVoyagerState(attempts, verboseDiagnostics);
-  if (embedded) return embedded;
+  const initialProfile = await extractViaLinkedInData(requestId, attempts, verboseDiagnostics, {
+    embeddedDetail: "Checking embedded LinkedIn profile state.",
+    voyagerDetail: "Trying same-page internal profile JSON."
+  });
+  if (initialProfile) return initialProfile;
 
   reportExtractionStatus(
     requestId,
-    "reading-linkedin-data",
-    "Reading LinkedIn data",
-    "Trying same-page internal profile JSON."
+    "preparing-page",
+    "Preparing profile page",
+    "Opening accessible profile sections."
   );
-  const voyager = await extractViaVoyagerApi(attempts, verboseDiagnostics);
-  if (voyager) return voyager;
+  await prepareAccessibleSections(settings);
+  assertProfileReady();
+
+  const preparedProfile = await extractViaLinkedInData(requestId, attempts, verboseDiagnostics, {
+    embeddedDetail: "Rechecking embedded LinkedIn profile state after page prep.",
+    includeVoyagerApi: false
+  });
+  if (preparedProfile) return preparedProfile;
+
   reportExtractionStatus(
     requestId,
     "using-page-fallback",
@@ -144,6 +139,33 @@ async function extractProfile(settings: Settings, requestId: string): Promise<Pr
     source: "linkedin-voyager"
   });
   return profile;
+}
+
+async function extractViaLinkedInData(
+  requestId: string,
+  attempts: VoyagerAttempt[],
+  verboseDiagnostics: boolean,
+  details: { embeddedDetail: string; includeVoyagerApi?: boolean; voyagerDetail?: string }
+): Promise<Profile | null> {
+  reportExtractionStatus(
+    requestId,
+    "reading-embedded-data",
+    "Reading page data",
+    details.embeddedDetail
+  );
+  const embedded = extractViaEmbeddedVoyagerState(attempts, verboseDiagnostics);
+  if (embedded) return embedded;
+  if (details.includeVoyagerApi === false) return null;
+
+  reportExtractionStatus(
+    requestId,
+    "reading-linkedin-data",
+    "Reading LinkedIn data",
+    details.voyagerDetail ?? "Trying same-page internal profile JSON."
+  );
+  const voyager = await extractViaVoyagerApi(attempts, verboseDiagnostics);
+  if (voyager) return voyager;
+  return null;
 }
 
 function extractViaEmbeddedVoyagerState(
@@ -291,10 +313,6 @@ function reportExtractionStatus(
       status
     } satisfies RuntimeMessage)
     .catch(() => undefined);
-}
-
-function createExtractionRequestId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `extract-${Date.now()}-${Math.random()}`;
 }
 
 function voyagerEndpoints(profileId: string): VoyagerEndpoint[] {
