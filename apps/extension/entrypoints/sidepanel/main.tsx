@@ -19,6 +19,9 @@ function SidePanelApp() {
         onDeliver={() => void controller.deliverCurrentProfile()}
         onDeliveryModeChange={(deliveryMode) => void controller.updateDeliveryMode(deliveryMode)}
         onExtract={() => void controller.extract()}
+        onRefresh={() =>
+          void controller.extract({ preferCachedProfile: false, refreshPolicy: "force-refresh" })
+        }
         onToggleFormat={(format) => void controller.toggleFormat(format)}
         profile={controller.profile}
         readiness={controller.readiness}

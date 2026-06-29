@@ -1,8 +1,12 @@
+import { isTextExportFormat } from "@linkedin-profile-exporter/core/export-formats";
 import type { ExportFormat, Profile } from "@linkedin-profile-exporter/core/schema";
 import type { Settings } from "@linkedin-profile-exporter/core/settings";
-import { browser } from "wxt/browser";
-import { copyProfileExport, isTextExportFormat, profileToClipboardText } from "./export-download";
-import type { RuntimeMessage, RuntimeResponse } from "./messaging";
+import { blockedClipboardFormats, formatsForDelivery } from "./delivery-formats";
+import {
+  copyProfileExport,
+  downloadProfileExport,
+  profileToClipboardText
+} from "./export-download";
 
 export interface DeliveryResult {
   action: Settings["deliveryMode"];
@@ -12,13 +16,7 @@ export interface DeliveryResult {
   ok: boolean;
 }
 
-export function formatsForDelivery(deliveryMode: Settings["deliveryMode"], formats: readonly ExportFormat[]): ExportFormat[] {
-  return deliveryMode === "clipboard" ? formats.filter(isTextExportFormat) : [...formats];
-}
-
-export function blockedClipboardFormats(formats: readonly ExportFormat[]): ExportFormat[] {
-  return formats.filter((format) => !isTextExportFormat(format));
-}
+export { blockedClipboardFormats, formatsForDelivery };
 
 export async function deliverProfileFormats(
   profile: Profile,
@@ -26,7 +24,9 @@ export async function deliverProfileFormats(
   deliveryMode: Settings["deliveryMode"] = settings.deliveryMode
 ): Promise<DeliveryResult[]> {
   const formats = formatsForDelivery(deliveryMode, settings.outputFormats);
-  return Promise.all(formats.map((format) => deliverProfileFormat(profile, settings, format, deliveryMode)));
+  return Promise.all(
+    formats.map((format) => deliverProfileFormat(profile, settings, format, deliveryMode))
+  );
 }
 
 async function deliverProfileFormat(
@@ -37,7 +37,12 @@ async function deliverProfileFormat(
 ): Promise<DeliveryResult> {
   if (deliveryMode === "clipboard") {
     if (!isTextExportFormat(format)) {
-      return { action: deliveryMode, format, ok: false, error: "XLSX is a binary workbook and must be downloaded." };
+      return {
+        action: deliveryMode,
+        format,
+        ok: false,
+        error: "XLSX is a binary workbook and must be downloaded."
+      };
     }
     try {
       await copyProfileExport(profile, format, settings.filenameTemplate);
@@ -53,18 +58,24 @@ async function deliverProfileFormat(
     }
   }
 
-  const response = (await browser.runtime.sendMessage({
-    type: "download-export",
-    profile,
-    format,
-    filenameTemplate: settings.filenameTemplate
-  } satisfies RuntimeMessage)) as RuntimeResponse;
-
-  if (response.ok) return { action: deliveryMode, format, ok: true };
-  return { action: deliveryMode, format, ok: false, error: response.error };
+  try {
+    await downloadProfileExport(profile, format, settings.filenameTemplate);
+    return { action: deliveryMode, format, ok: true };
+  } catch (error) {
+    return {
+      action: deliveryMode,
+      format,
+      ok: false,
+      error: error instanceof Error ? error.message : "Download failed."
+    };
+  }
 }
 
-async function safeClipboardFallback(profile: Profile, format: ExportFormat, filenameTemplate: string): Promise<string | undefined> {
+async function safeClipboardFallback(
+  profile: Profile,
+  format: ExportFormat,
+  filenameTemplate: string
+): Promise<string | undefined> {
   try {
     return await profileToClipboardText(profile, format, filenameTemplate);
   } catch {

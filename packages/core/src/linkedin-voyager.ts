@@ -5,6 +5,7 @@ import {
   type Provenance,
   profileSchema
 } from "./schema";
+import { normalizeReadableText } from "./text";
 
 export interface VoyagerExtractionOptions {
   now?: string;
@@ -17,6 +18,8 @@ export interface VoyagerExtractionOptions {
 type JsonRecord = Record<string, unknown>;
 type WorkExperience = Profile["work"][number];
 type NestedRole = WorkExperience["roles"][number];
+type Skill = Profile["skills"][number];
+type Course = Profile["courses"][number];
 
 const PROFILE_KEYS = ["*profile"];
 const PROFILE_TYPES = [
@@ -63,7 +66,10 @@ const POSITION_IN_GROUP_KEYS = [
 const SKILL_KEYS = ["*skillView", "*profileSkills"];
 const SKILL_TYPES = [
   "com.linkedin.voyager.identity.profile.Skill",
+  "com.linkedin.voyager.identity.profile.SkillView",
   "com.linkedin.voyager.dash.identity.profile.Skill",
+  "com.linkedin.voyager.dash.identity.profile.SkillView",
+  "com.linkedin.voyager.dash.deco.identity.profile.FullProfileSkillView",
   "com.linkedin.voyager.dash.deco.identity.profile.FullProfileSkill"
 ];
 const CERTIFICATION_KEYS = ["*certificationView", "*profileCertifications"];
@@ -246,21 +252,16 @@ export function extractProfileFromVoyagerPayload(
     (item) => `${item.school}|${item.degree ?? ""}|${item.field ?? ""}|${item.dates ?? ""}`
   );
 
-  const skills = uniqueBy(
-    valuesFrom(dbs, SKILL_KEYS, SKILL_TYPES)
-      .map((skill) => {
-        const name = stringValue(skill.name) ?? stringValue(skill.multiLocaleName);
-        if (!name) return null;
-        return {
-          name,
-          endorsements: numberValue(skill.endorsementCount ?? skill.endorsementsCount),
-          provenance: provenance("skills"),
-          confidence: 0.9
-        };
-      })
-      .filter(isPresent),
-    (skill) => skill.name.toLowerCase()
+  const skills = uniqueSkills(
+    skillRecordsFromDbs(dbs)
+      .map((skill) => skillFromEntity(skill, provenance("skills")))
+      .filter(isPresent)
   );
+  const skillSummary = sectionCollectionSummary(dbs, {
+    collectionPattern: /FullProfileSkillsInjection|ProfileSkills|SkillCategory/i,
+    entityUrnPattern: /profile[-_]?skills|profileskills|skillcategory/i,
+    keys: SKILL_KEYS
+  });
 
   const recommendations = valuesFrom(
     dbs,
@@ -291,7 +292,7 @@ export function extractProfileFromVoyagerPayload(
       };
     });
 
-  const courses = uniqueBy(
+  const mergedCourses = mergeCourseCandidates(
     valuesFrom(dbs, COURSE_KEYS, COURSE_TYPES)
       .map((course) => {
         const db = dbForEntity(dbs, course) ?? primaryDb;
@@ -305,9 +306,20 @@ export function extractProfileFromVoyagerPayload(
           confidence: 0.85
         };
       })
-      .filter(isPresent),
-    (course) => `${course.name}|${course.provider ?? ""}`.toLowerCase()
+      .filter(isPresent)
   );
+  const courses = mergedCourses.items;
+
+  const skillDiagnostic = skillCompletenessDiagnostic(skillSummary, skills.length, sourceName);
+  if (skillDiagnostic) diagnostics.push(skillDiagnostic);
+  if (mergedCourses.duplicateCount) {
+    diagnostics.push({
+      code: "linkedin-voyager.courses.deduplicated",
+      level: "info",
+      message: `Voyager course extraction merged ${mergedCourses.duplicateCount} duplicate course record${mergedCourses.duplicateCount === 1 ? "" : "s"} by normalized course identity.`,
+      source: sourceName
+    });
+  }
 
   const featured = uniqueBy(
     valuesFrom(dbs, FEATURED_KEYS, FEATURED_TYPES)
@@ -530,22 +542,29 @@ function buildVoyagerDb(payload: unknown) {
       })
     : [];
   const entitiesByUrn: Record<string, JsonRecord> = {};
+  const entitiesByType: Record<string, JsonRecord[]> = {};
+  const entitySet = new WeakSet<JsonRecord>(included);
   for (const entity of included) {
     for (const entityUrn of entityKeysForIndex(entity)) {
       entitiesByUrn[entityUrn] = entity;
+    }
+    for (const entityType of entityTypesForIndex(entity)) {
+      (entitiesByType[entityType] ??= []).push(entity);
     }
   }
   return {
     data,
     entities: included,
+    entitiesByType,
     entitiesByUrn,
+    entitySet,
     tableOfContents: data,
     getElementByUrn(urn: string | undefined) {
       return urn ? entitiesByUrn[urn] : undefined;
     },
     getElementsByType(types: string | string[]) {
       const expected = Array.isArray(types) ? types : [types];
-      return included.filter((entity) => entityMatchesTypes(entity, expected));
+      return Array.from(new Set(expected.flatMap((type) => entitiesByType[type] ?? [])));
     },
     getValuesByKey(keys: string | string[]) {
       return keysArray(keys).flatMap((key) => valuesForKey(data[key], entitiesByUrn));
@@ -560,6 +579,279 @@ function valuesFrom(dbs: VoyagerDb[], keys: string[], types: string[]): JsonReco
     dbs.flatMap((db) => [...db.getValuesByKey(keys), ...db.getElementsByType(types)]),
     (entity) => entityKey(entity) ?? JSON.stringify(entity)
   );
+}
+
+function skillRecordsFromDbs(dbs: VoyagerDb[]): JsonRecord[] {
+  return [
+    ...valuesFrom(dbs, SKILL_KEYS, SKILL_TYPES),
+    ...dbs.flatMap((db) => skillRecordsFromDb(db))
+  ];
+}
+
+function skillRecordsFromDb(db: VoyagerDb): JsonRecord[] {
+  const seen = new WeakSet<JsonRecord>();
+  return [
+    ...skillRecordsFromValue(db.tableOfContents, db, seen, 0),
+    ...db.entities.flatMap((entity) => skillRecordsFromValue(entity, db, seen, 0))
+  ];
+}
+
+function skillRecordsFromValue(
+  value: unknown,
+  db: VoyagerDb,
+  seen: WeakSet<JsonRecord>,
+  depth: number
+): JsonRecord[] {
+  if (depth > 10) return [];
+  if (typeof value === "string") {
+    const linked = objectRecord(db.getElementByUrn(value));
+    return linked ? skillRecordsFromValue(linked, db, seen, depth + 1) : [];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => skillRecordsFromValue(item, db, seen, depth + 1));
+  }
+  const record = objectRecord(value);
+  if (!record) return [];
+  if (seen.has(record)) return [];
+  seen.add(record);
+
+  const direct = isSkillRecord(record) ? [record] : [];
+  const nested = Object.values(record).flatMap((item) =>
+    skillRecordsFromValue(item, db, seen, depth + 1)
+  );
+  return [...direct, ...nested];
+}
+
+function isSkillRecord(record: JsonRecord): boolean {
+  const name = skillNameFromEntity(record);
+  if (!name) return false;
+  const entityUrn =
+    stringValue(record.entityUrn) ?? stringValue(record.backendUrn) ?? stringValue(record.skillUrn);
+  const typeNames = [stringValue(record.$type), ...recipeTypesForEntity(record)].filter(isPresent);
+  const typeText = typeNames.join(" ");
+  if (/SkillCategory|CollectionResponse|Endorsement/i.test(`${entityUrn ?? ""} ${typeText}`)) {
+    return false;
+  }
+  if (
+    typeNames.some((typeName) =>
+      /(?:^|\.)((FullProfile)?Skill|SkillView|FullProfileSkillView|ProfileSkill|SkillEntity)$/.test(
+        typeName
+      )
+    )
+  ) {
+    return true;
+  }
+  return Boolean(entityUrn && /urn:li:(?:fsd?_)?(?:profile)?skill[:(]/i.test(entityUrn));
+}
+
+function skillFromEntity(skill: JsonRecord, provenance: Provenance): Skill | null {
+  const name = skillNameFromEntity(skill);
+  if (!name) return null;
+  return {
+    name,
+    endorsements: numberValue(
+      skill.endorsementCount ??
+        skill.endorsementsCount ??
+        skill.numEndorsements ??
+        skill.endorsements
+    ),
+    provenance,
+    confidence: 0.9
+  };
+}
+
+function skillNameFromEntity(skill: JsonRecord): string | undefined {
+  return (
+    stringValue(skill.name) ??
+    stringValue(skill.multiLocaleName) ??
+    stringValue(skill.localizedName) ??
+    stringValue(skill.title) ??
+    stringValue(skill.displayName) ??
+    stringValue(skill.skillName) ??
+    stringValue(skill.skill)
+  );
+}
+
+function uniqueSkills(skills: Skill[]): Skill[] {
+  const byName = new Map<string, Skill>();
+  for (const skill of skills) {
+    const key = skill.name.toLowerCase();
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, skill);
+      continue;
+    }
+    if (skill.endorsements !== undefined) {
+      byName.set(key, {
+        ...existing,
+        endorsements:
+          existing.endorsements === undefined
+            ? skill.endorsements
+            : Math.max(existing.endorsements, skill.endorsements)
+      });
+    }
+  }
+  return Array.from(byName.values());
+}
+
+function mergeCourseCandidates(courses: Course[]): { duplicateCount: number; items: Course[] } {
+  const byIdentity = new Map<string, Course[]>();
+  for (const course of courses) {
+    const key = courseIdentityKey(course);
+    const bucket = byIdentity.get(key) ?? [];
+    bucket.push(course);
+    byIdentity.set(key, bucket);
+  }
+
+  let duplicateCount = 0;
+  const items: Course[] = [];
+  for (const bucket of byIdentity.values()) {
+    const providers = uniqueBy(
+      bucket.flatMap((course) => (course.provider ? [course.provider] : [])),
+      (provider) => normalizeCourseToken(provider)
+    );
+    if (providers.length <= 1) {
+      duplicateCount += Math.max(0, bucket.length - 1);
+      items.push(mergeCourseGroup(bucket));
+      continue;
+    }
+
+    const byProvider = new Map<string, Course[]>();
+    for (const course of bucket) {
+      const providerKey = course.provider ? normalizeCourseToken(course.provider) : providers[0]!;
+      const providerBucket = byProvider.get(providerKey) ?? [];
+      providerBucket.push(course);
+      byProvider.set(providerKey, providerBucket);
+    }
+    for (const providerBucket of byProvider.values()) {
+      duplicateCount += Math.max(0, providerBucket.length - 1);
+      items.push(mergeCourseGroup(providerBucket));
+    }
+  }
+
+  return { duplicateCount, items };
+}
+
+function mergeCourseGroup(courses: Course[]): Course {
+  return courses.reduce((merged, course) => {
+    const next: Course = {
+      ...merged,
+      number: merged.number ?? course.number,
+      provider: merged.provider ?? course.provider,
+      provenance: merged.provenance ?? course.provenance
+    };
+    const confidence = [merged.confidence, course.confidence].filter(
+      (value): value is number => typeof value === "number"
+    );
+    if (confidence.length) next.confidence = Math.max(...confidence);
+    return next;
+  });
+}
+
+function courseIdentityKey(course: Course): string {
+  return [normalizeCourseToken(course.number ?? ""), normalizeCourseToken(course.name)].join("|");
+}
+
+function normalizeCourseToken(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function sectionCollectionSummary(
+  dbs: VoyagerDb[],
+  section: { collectionPattern: RegExp; entityUrnPattern: RegExp; keys: string[] }
+): { pageSize: number; totalCount: number } {
+  const summary = { pageSize: 0, totalCount: 0 };
+  for (const db of dbs) {
+    collectSectionCollectionSummary(db.tableOfContents, summary, section, 0);
+    for (const entity of db.entities) {
+      collectSectionCollectionSummary(entity, summary, section, 0);
+    }
+  }
+  return summary;
+}
+
+function collectSectionCollectionSummary(
+  value: unknown,
+  summary: { pageSize: number; totalCount: number },
+  section: { collectionPattern: RegExp; entityUrnPattern: RegExp; keys: string[] },
+  depth: number
+): void {
+  if (depth > 8) return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectSectionCollectionSummary(item, summary, section, depth + 1);
+    return;
+  }
+
+  const record = objectRecord(value);
+  if (!record) return;
+
+  for (const key of section.keys) {
+    const directItems = record[key];
+    if (Array.isArray(directItems)) {
+      summary.pageSize = Math.max(summary.pageSize, directItems.length);
+    }
+  }
+
+  if (isSectionCollectionRecord(record, section)) {
+    const elements = record["*elements"] ?? record.elements;
+    if (Array.isArray(elements)) summary.pageSize = Math.max(summary.pageSize, elements.length);
+    const paging = objectRecord(record.paging);
+    const counts = [
+      numberValue(paging?.total),
+      numberValue(record.totalCount),
+      numberValue(record.total),
+      numberValue(paging?.count),
+      numberValue(record.count)
+    ].filter((value): value is number => typeof value === "number");
+    if (counts.length) summary.totalCount = Math.max(summary.totalCount, ...counts);
+  }
+
+  for (const nested of Object.values(record)) {
+    collectSectionCollectionSummary(nested, summary, section, depth + 1);
+  }
+}
+
+function isSectionCollectionRecord(
+  record: JsonRecord,
+  section: { collectionPattern: RegExp; entityUrnPattern: RegExp }
+): boolean {
+  const entityUrn = stringValue(record.entityUrn);
+  if (entityUrn && section.entityUrnPattern.test(entityUrn)) return true;
+  const typeNames = [stringValue(record.$type), ...recipeTypesForEntity(record)].filter(isPresent);
+  return typeNames.some((typeName) => section.collectionPattern.test(typeName));
+}
+
+function skillCompletenessDiagnostic(
+  summary: { pageSize: number; totalCount: number },
+  skillCount: number,
+  sourceName: string
+): Diagnostic | undefined {
+  if (summary.totalCount > skillCount) {
+    return {
+      code: "linkedin-voyager.skills.partial",
+      level: "warning",
+      message: `Voyager skill data advertised ${summary.totalCount} skills, but ${skillCount} unique skills were extracted.`,
+      source: sourceName
+    };
+  }
+  if (summary.totalCount > 20 && skillCount >= summary.totalCount) {
+    return {
+      code: "linkedin-voyager.skills.recovered",
+      level: "info",
+      message: `Voyager supplemental skill data recovered ${skillCount} unique skills.`,
+      source: sourceName
+    };
+  }
+  if (skillCount === 20 && summary.pageSize >= 20) {
+    return {
+      code: "linkedin-voyager.skills.possibly-capped",
+      level: "warning",
+      message:
+        "Voyager skill extraction returned exactly 20 skills from a page-sized collection; the section may still be capped.",
+      source: sourceName
+    };
+  }
+  return undefined;
 }
 
 function workFromPositionGroup(
@@ -866,6 +1158,7 @@ function courseProvider(course: JsonRecord, db: VoyagerDb): string | undefined {
   const occupationUnion = objectRecord(course.occupationUnion);
   const educationUrn =
     stringValue(occupationUnion?.profileEducation) ??
+    stringValue(occupationUnion?.["*profileEducation"]) ??
     stringValue(course.profileEducation) ??
     stringValue(course["*profileEducation"]);
   const education = objectRecord(db.getElementByUrn(educationUrn));
@@ -1085,7 +1378,7 @@ function firstValue(dbs: VoyagerDb[], keys: string[], types: string[]): JsonReco
 function dbForEntity(dbs: VoyagerDb[], entity: JsonRecord): VoyagerDb | undefined {
   const urn = entityKey(entity);
   return dbs.find(
-    (db) => (urn ? db.entitiesByUrn[urn] === entity : false) || db.entities.includes(entity)
+    (db) => (urn ? db.entitiesByUrn[urn] === entity : false) || db.entitySet.has(entity)
   );
 }
 
@@ -1109,11 +1402,10 @@ function entityOrCollection(
   return [entity];
 }
 
-function entityMatchesTypes(entity: JsonRecord, expected: string[]): boolean {
-  const type = stringValue(entity.$type);
-  if (type && expected.includes(type)) return true;
-
-  return recipeTypesForEntity(entity).some((candidate) => expected.includes(candidate));
+function entityTypesForIndex(entity: JsonRecord): string[] {
+  return Array.from(new Set([stringValue(entity.$type), ...recipeTypesForEntity(entity)])).filter(
+    isPresent
+  );
 }
 
 function recipeTypesForEntity(entity: JsonRecord): string[] {
@@ -1231,7 +1523,8 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function sentenceTextValue(value: unknown): string | undefined {
-  return stringValue(value)?.replace(/([a-z0-9][.!?])(?=[A-Z][a-z]+(?:\s|$))/g, "$1 ");
+  const text = stringValue(value);
+  return text ? normalizeReadableText(text) : undefined;
 }
 
 function urlValue(value: unknown): string | undefined {

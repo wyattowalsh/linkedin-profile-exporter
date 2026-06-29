@@ -11,9 +11,12 @@ choose data scope, automation mode, output formats, filename templates, privacy 
 persist extracted data, and diagnostics detail.
 
 Canonical exports omit field provenance, confidence, and diagnostics by default. The Include all
-fields setting is opt-in and includes those fields plus verbose Voyager inventory diagnostics for
-troubleshooting extraction coverage, including section counts, entity type counts, and field-key
-inventory without persisting raw LinkedIn payloads.
+fields setting is opt-in and includes provenance, confidence, and normal diagnostics without
+persisting raw LinkedIn payloads. Verbose diagnostics is a separate opt-in for Voyager inventory
+troubleshooting, including section counts, entity type counts, and field-key inventory. Include all
+fields visually checks provenance and confidence because they are implied in the export, but their
+explicit toggles remain editable so their stored values are ready when Include all fields is turned
+off.
 
 The product includes controls to clear local extracted state before another export.
 
@@ -32,18 +35,25 @@ The product includes controls to clear local extracted state before another expo
 Enable **Include all fields** when you are validating extraction coverage, debugging missing
 sections, or comparing Voyager and DOM behavior. It preserves:
 
-| Field family | Included detail                                                                                                               |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Provenance   | Source type, source name, selector when available, capture time, and notes.                                                   |
-| Confidence   | Per-field confidence scores from parser paths that can estimate certainty.                                                    |
-| Diagnostics  | Readiness, hidden-section notes, Voyager parse results, section inventory, table-of-contents inventory, and entity inventory. |
+| Field family | Included detail                                                             |
+| ------------ | --------------------------------------------------------------------------- |
+| Provenance   | Source type, source name, selector when available, capture time, and notes. |
+| Confidence   | Per-field confidence scores from parser paths that can estimate certainty.  |
+| Diagnostics  | Readiness, hidden-section notes, and normal Voyager parse results.          |
 
 Disable it again for routine exports. Default exports strip diagnostics, provenance, and confidence
-before format delivery.
+before format delivery. Default Markdown stays clean; when Include all fields or Verbose diagnostics
+retains troubleshooting metadata, Markdown adds an aggregate-only Coverage Diagnostics section with
+section states and counts.
+
+Enable **Verbose diagnostics** separately when you need Voyager section inventory, table-of-contents
+inventory, entity type counts, or field-key inventory. Keep it off for routine exports because those
+diagnostics are larger and only useful for troubleshooting extraction coverage.
 
 `pnpm check:profile-output` validates those defaults against the synthetic Voyager fixture. Passing
-a local exported JSON path validates that file too, while printing only aggregate section counts,
-diagnostic codes, and export byte sizes.
+a local exported JSON, XML, pasted XML text, or pasted Markdown text path validates or assures that
+file too, while printing only aggregate section counts, diagnostic codes, warning categories, and
+export byte sizes.
 
 ## Local state
 

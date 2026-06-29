@@ -53,8 +53,8 @@ hidden cleanup work.
 #### Scenario: Profile output assurance
 
 - **WHEN** profile-output assurance runs against the deterministic fixture or a supplied
-  canonical JSON export
+  canonical JSON, XML, pasted XML text, or pasted Markdown text export
 - **THEN** schema validation, default diagnostics/provenance/confidence stripping,
-  Include all fields retention, section counts, diagnostics inventory, and JSON, JSON
-  Resume, YAML, CSV, XLSX, XML, and Markdown exports are checked without printing raw
-  profile field values.
+  Include all fields retention, verbose diagnostics gating, section counts, warning
+  categories, Markdown coverage diagnostics, and JSON, JSON Resume, YAML, CSV, XLSX,
+  XML, and Markdown exports are checked without printing raw profile field values.

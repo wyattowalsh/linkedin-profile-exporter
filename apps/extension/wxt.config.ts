@@ -14,11 +14,10 @@ export default defineConfig({
       "activeTab",
       "downloads",
       "storage",
-      ...(browser === "chrome" || browser === "edge" ? ["sidePanel"] : [])
+      ...(browser === "chrome" || browser === "edge" ? ["scripting", "sidePanel", "tabs"] : [])
     ],
     host_permissions: ["https://www.linkedin.com/in/*"],
     action: {
-      ...(browser === "chrome" || browser === "edge" ? { default_state: "disabled" as const } : {}),
       default_popup: "popup.html",
       default_title: "Open a LinkedIn profile to export",
       default_icon: {

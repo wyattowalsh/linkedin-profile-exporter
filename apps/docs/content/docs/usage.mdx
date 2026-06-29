@@ -12,20 +12,25 @@ delivery setting. Review-before-export is the default workflow.
 ## Recommended flow
 
 1. Open a `https://www.linkedin.com/in/...` profile tab.
-2. Wait for the toolbar action to enable and show the `IN` badge.
+2. Wait for the toolbar action to show the `IN` badge for the profile tab.
 3. Open the popup or side panel.
-4. Click **Extract** and watch the phase label move through readiness, page prep, embedded data,
-   Voyager data, and fallback if needed.
-5. Review the summary counts before delivery.
-6. Choose output formats and download or copy the selected exports.
+4. The popup shows any same-profile cached review first, then starts one review extraction
+   automatically only when no usable cache is available.
+5. Watch the phase label move through readiness, page prep, embedded data, Voyager data, section
+   recovery, details, pagination, and fallback if needed.
+6. Review the summary counts before delivery.
+7. Choose output formats and download or copy the selected exports.
+8. Use the refresh control next to **Extract** only when you want to force a fresh LinkedIn read for
+   the same profile.
 
 ## Readiness states
 
-| State        | Meaning                                                          | Next action                                       |
-| ------------ | ---------------------------------------------------------------- | ------------------------------------------------- |
-| Ready        | The active or fallback profile tab can be read.                  | Extract or deliver.                               |
-| Needs action | The profile page is open but content is still loading or hidden. | Wait, scroll, expand sections, or reload the tab. |
-| Unavailable  | No active LinkedIn profile tab was found.                        | Open a profile page, then reopen the popup.       |
+| State        | Meaning                                                          | Next action                                             |
+| ------------ | ---------------------------------------------------------------- | ------------------------------------------------------- |
+| Ready        | The active or fallback profile tab can be read.                  | Extract or deliver.                                     |
+| Connecting   | The popup is checking the active or fallback profile tab.        | Wait for the ready, needs-action, or unavailable state. |
+| Needs action | The profile page is open but content is still loading or hidden. | Wait, scroll, or expand sections.                       |
+| Unavailable  | No active LinkedIn profile tab was found.                        | Open a profile page, then reopen the popup.             |
 
 ## Slowness and errors
 
@@ -33,5 +38,18 @@ Voyager API attempts are bounded so one slow LinkedIn internal endpoint does not
 When Voyager data is unavailable, the extension records a warning diagnostic and uses the page
 fallback instead of failing the whole flow.
 
+Some sections, especially skills and courses, may advertise more items than the first profile page
+renders. The extension tries same-profile supplements, detail pages, temporary same-profile detail
+renders, and safe pagination before it marks a section complete. Temporary detail surfaces are
+in-page recovery surfaces only, bounded to capped or advertised sections, and removed after
+recovery. LinkedIn paging totals guide the recovery target; they do not count as recovered items
+unless actual entities or rendered rows are available. Opening the popup or clicking **Extract** can
+reuse a same-profile cached review so routine checks stay responsive; explicit refresh is the path
+that bypasses cache and may run detail recovery again. If LinkedIn does not expose a section to the
+current session, the popup keeps the count honest with partial, capped, or unavailable status
+signals. Unavailable means no accessible items were recovered for that section, not that one
+fallback attempt failed.
+
 Use **Include all fields** only for troubleshooting. It adds readiness diagnostics, section
-coverage, provenance, confidence, and Voyager inventory details.
+coverage, provenance, and confidence. Enable **Verbose diagnostics** separately when you need
+Voyager inventory details.

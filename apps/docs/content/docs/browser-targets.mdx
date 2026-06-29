@@ -8,14 +8,14 @@ description: Target browser packaging notes
 WXT builds target-specific artifacts for Chrome/Chromium, Edge, Firefox, and Safari. Each target is
 validated against its generated manifest instead of assuming one shared manifest works everywhere.
 
-| Target          | Output                               | Manifest family      | Notes                                                                                                                           |
-| --------------- | ------------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Chrome/Chromium | `apps/extension/.output/chrome-mv3`  | MV3                  | Primary local development target. Uses `activeTab`, `storage`, `downloads`, `sidePanel`, and LinkedIn profile host permissions. |
-| Microsoft Edge  | `apps/extension/.output/edge-mv3`    | MV3                  | Chrome-compatible build with Edge packaging and listing metadata.                                                               |
-| Firefox         | `apps/extension/.output/firefox-mv2` | MV2                  | Requires add-on ZIP plus source-review material for AMO review.                                                                 |
-| Safari          | `apps/extension/.output/safari-mv2`  | Safari wrapper path  | Requires Apple’s Safari Web Extension packaging flow in Xcode before device or App Store testing.                               |
-| Mobile Safari   | Safari wrapper output                | Platform constrained | Documented as a packaging and QA path, not a credentialed submission in v0.1.0.                                                 |
-| Mobile Chrome   | N/A                                  | Platform constrained | Documented honestly as constrained; desktop extension builds are the robust path.                                               |
+| Target          | Output                               | Manifest family      | Notes                                                                                                                                                |
+| --------------- | ------------------------------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chrome/Chromium | `apps/extension/.output/chrome-mv3`  | MV3                  | Primary local development target. Uses `activeTab`, `storage`, `downloads`, `scripting`, `sidePanel`, `tabs`, and LinkedIn profile host permissions. |
+| Microsoft Edge  | `apps/extension/.output/edge-mv3`    | MV3                  | Chrome-compatible build with Edge packaging and listing metadata.                                                                                    |
+| Firefox         | `apps/extension/.output/firefox-mv2` | MV2                  | Requires add-on ZIP plus source-review material for AMO review.                                                                                      |
+| Safari          | `apps/extension/.output/safari-mv2`  | Safari wrapper path  | Requires Apple’s Safari Web Extension packaging flow in Xcode before device or App Store testing.                                                    |
+| Mobile Safari   | Safari wrapper output                | Platform constrained | Documented as a packaging and QA path, not a credentialed submission in v0.1.0.                                                                      |
+| Mobile Chrome   | N/A                                  | Platform constrained | Documented honestly as constrained; desktop extension builds are the robust path.                                                                    |
 
 Credentialed store submission is intentionally separate from local builds and GitHub Release
 artifact handoff.

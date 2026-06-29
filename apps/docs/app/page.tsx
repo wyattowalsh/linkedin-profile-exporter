@@ -42,7 +42,6 @@ const quickLinks = [
 ];
 
 const modelSections = [
-  "Identity",
   "Experience",
   "Education",
   "Skills",
@@ -52,8 +51,13 @@ const modelSections = [
   "Volunteering",
   "Honors",
   "Tests",
+  "Patents",
+  "Languages",
   "Courses",
-  "Featured"
+  "Recommendations",
+  "Featured",
+  "Organizations",
+  "Interests"
 ];
 
 export default function Page() {
@@ -136,14 +140,14 @@ export default function Page() {
           </Card>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-3 md:grid-cols-[1.2fr_0.8fr] lg:grid-cols-[1.15fr_0.85fr_1fr_0.9fr]">
           {quickLinks.map((item) => (
             <a
               key={item.href}
-              className="group rounded-lg border border-zinc-200 bg-white p-4 text-zinc-950 no-underline shadow-sm transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+              className="group rounded-lg border border-zinc-200 bg-white p-4 text-zinc-950 no-underline shadow-[0_18px_40px_-34px_rgba(24,24,27,0.45)] transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 active:scale-[0.99] md:first:col-span-2 lg:first:col-span-1"
               href={item.href}
             >
-              <item.icon aria-hidden="true" />
+              <item.icon className="text-emerald-900" aria-hidden="true" size={20} />
               <p className="mt-4 text-sm font-semibold">{item.label}</p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">{item.description}</p>
             </a>
@@ -177,8 +181,8 @@ export default function Page() {
 
         <Alert className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <span>
-            Provenance, confidence, and Voyager inventory diagnostics stay out of default exports.
-            Enable Include all fields only when auditing extraction coverage.
+            Provenance, confidence, and diagnostics stay out of default exports. Enable Include all
+            fields for audit metadata, and Verbose diagnostics only for Voyager inventory detail.
           </span>
           <a className="font-medium" href="/docs/settings-privacy">
             Review settings
@@ -212,7 +216,7 @@ export default function Page() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
       <p className="text-2xl font-semibold tabular-nums text-zinc-950">{value}</p>
       <p className="mt-1 text-xs text-zinc-600">{label}</p>
     </div>
@@ -231,7 +235,7 @@ function InfoCard({
   title: string;
 }) {
   return (
-    <Card>
+    <Card className="transition-[border-color,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-zinc-300">
       <CardHeader>
         <Icon aria-hidden="true" />
         <CardTitle>{title}</CardTitle>

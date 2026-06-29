@@ -11,6 +11,8 @@ import {
   voyagerDashProfilePayload,
   sparseProfileHtml,
   voyagerProfilePayload,
+  voyagerSupplementalManyCoursesPayload,
+  voyagerSupplementalManySkillsPayload,
   voyagerSupplementalSkillsPayload
 } from "@linkedin-profile-exporter/fixtures";
 import {
@@ -29,7 +31,8 @@ import {
   extractProfileFromHtml,
   extractProfileFromVoyagerPayload,
   profileSchema,
-  settingsSchema
+  settingsSchema,
+  shouldIncludeVerboseDiagnostics
 } from "../src";
 
 const fullMetadataSettings = { diagnostics: { includeAllFields: true } } as const;
@@ -230,6 +233,45 @@ describe("extraction", () => {
     expect(profile.identity.about).toBe("Fast extraction. Most exports stay local.");
   });
 
+  it("normalizes first-person sentence joins in rich export text", () => {
+    const html = denseProfileHtml.replace(
+      "I build local-first tools that turn messy browser workflows into structured, reviewable data.",
+      "Fast extraction.I\u2019ve shipped exports. Costs fell 90%.I\u2019ve kept accuracy high. (Notes).Next section. Summary].Next section."
+    );
+    expect(extractProfileFromHtml(html).identity.about).toBe(
+      "Fast extraction. I\u2019ve shipped exports. Costs fell 90%. I\u2019ve kept accuracy high. (Notes). Next section. Summary]. Next section."
+    );
+
+    const payload = structuredClone(voyagerProfilePayload) as unknown as {
+      included: Array<Record<string, unknown>>;
+    };
+    const profileEntity = payload.included.find(
+      (item) => item.$type === "com.linkedin.voyager.identity.profile.Profile"
+    );
+    if (!profileEntity) throw new Error("Voyager profile fixture entity missing");
+    profileEntity.summary =
+      "Fast extraction.I\u2019ve shipped exports. Costs fell 90%.I\u2019ve kept accuracy high.";
+
+    const profile = extractProfileFromVoyagerPayload(payload, {
+      now: fixedNow,
+      supplementalPayloads: [structuredClone(voyagerSupplementalSkillsPayload)],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(profile.identity.about).toBe(
+      "Fast extraction. I\u2019ve shipped exports. Costs fell 90%. I\u2019ve kept accuracy high."
+    );
+  });
+
+  it("does not split URL-like tokens or uppercase acronym boundaries", () => {
+    const html = denseProfileHtml.replace(
+      "I build local-first tools that turn messy browser workflows into structured, reviewable data.",
+      "Keep https://example.com/path.Next and U.S.A.Next intact."
+    );
+    expect(extractProfileFromHtml(html).identity.about).toBe(
+      "Keep https://example.com/path.Next and U.S.A.Next intact."
+    );
+  });
+
   it("continues when embedded client state has an unsupported shape", () => {
     const html = denseProfileHtml.replace(
       '"skills": [{ "name": "Schema Design", "endorsements": 8 }]',
@@ -389,6 +431,231 @@ describe("extraction", () => {
     expect(profile.identity.provenance?.sourceType).toBe("client-state");
   });
 
+  it("merges supplemental Voyager skills and courses beyond the first visible page", () => {
+    const profile = extractProfileFromVoyagerPayload(voyagerDashProfilePayload, {
+      now: fixedNow,
+      source: "linkedin-voyager.network.dashProfile",
+      supplementalPayloads: [
+        voyagerSupplementalManyCoursesPayload,
+        voyagerSupplementalManySkillsPayload
+      ],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+
+    expect(profile.skills).toHaveLength(97);
+    expect(profile.skills[0]?.name).toBe("TypeScript");
+    expect(profile.skills.at(-1)?.name).toBe("Skill 097");
+    expect(profile.courses).toHaveLength(28);
+    expect(profile.courses[0]?.name).toBe("AUT-201 - Accessible Automation Systems");
+    expect(profile.courses.at(-1)?.name).toBe("CRS-028 - Course 028");
+  });
+
+  it("extracts live-style skillCategory supplements with nested untyped skill records", () => {
+    const skillUrns = Array.from({ length: 97 }, (_, index) =>
+      index === 0
+        ? "urn:li:fs_skill:(alex-rivera,typescript)"
+        : `urn:li:fs_skill:(alex-rivera,skill-${String(index + 1).padStart(3, "0")})`
+    );
+    const profile = extractProfileFromVoyagerPayload(voyagerDashProfilePayload, {
+      now: fixedNow,
+      source: "linkedin-voyager.network.dashProfile",
+      supplementalPayloads: [
+        {
+          data: {
+            "*elements": ["urn:li:collection:skillCategory"]
+          },
+          included: [
+            {
+              entityUrn: "urn:li:collection:skillCategory",
+              $type: "com.linkedin.voyager.identity.profile.SkillCategory",
+              "*skills": skillUrns,
+              paging: { count: 97, start: 0 }
+            },
+            ...skillUrns.map((entityUrn, index) => ({
+              entityUrn,
+              name: index === 0 ? "TypeScript" : `Skill ${String(index + 1).padStart(3, "0")}`,
+              ...(index === 0 ? { endorsementCount: 12 } : {})
+            }))
+          ]
+        }
+      ],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+
+    expect(profile.skills).toHaveLength(97);
+    expect(profile.skills[0]).toMatchObject({ endorsements: 12, name: "TypeScript" });
+    expect(profile.skills.at(-1)?.name).toBe("Skill 097");
+    expect(
+      profile.diagnostics.some(
+        (diagnostic) => diagnostic.code === "linkedin-voyager.skills.recovered"
+      )
+    ).toBe(true);
+  });
+
+  it("extracts details-page skill categories with nested skill title records", () => {
+    const skillUrns = Array.from({ length: 97 }, (_, index) =>
+      index === 0
+        ? "urn:li:fsd_skill:(alex-rivera,typescript)"
+        : `urn:li:fsd_skill:(alex-rivera,skill-${String(index + 1).padStart(3, "0")})`
+    );
+    const profile = extractProfileFromVoyagerPayload(voyagerDashProfilePayload, {
+      now: fixedNow,
+      source: "linkedin-voyager.network.dashProfile",
+      supplementalPayloads: [
+        {
+          data: {
+            "*elements": ["urn:li:fsd_profileSkillCategory:(alex-rivera,top-skills)"]
+          },
+          included: [
+            {
+              entityUrn: "urn:li:fsd_profileSkillCategory:(alex-rivera,top-skills)",
+              $type: "com.linkedin.voyager.dash.identity.profile.SkillCategory",
+              "*skills": skillUrns,
+              paging: { total: 97, start: 0 }
+            },
+            ...skillUrns.map((entityUrn, index) => ({
+              entityUrn,
+              skillUrn: entityUrn,
+              $type: "com.linkedin.voyager.dash.identity.profile.ProfileSkill",
+              title: {
+                text: index === 0 ? "TypeScript" : `Skill ${String(index + 1).padStart(3, "0")}`
+              },
+              ...(index === 0 ? { endorsementCount: 12 } : {})
+            }))
+          ]
+        }
+      ],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+
+    expect(profile.skills).toHaveLength(97);
+    expect(profile.skills[0]).toMatchObject({ endorsements: 12, name: "TypeScript" });
+    expect(profile.skills.at(-1)?.name).toBe("Skill 097");
+    expect(
+      profile.diagnostics.some(
+        (diagnostic) => diagnostic.code === "linkedin-voyager.skills.recovered"
+      )
+    ).toBe(true);
+  });
+
+  it("uses paging totals instead of page size for skill completeness diagnostics", () => {
+    const skillUrns = Array.from(
+      { length: 20 },
+      (_, index) => `urn:li:fsd_skill:(alex-rivera,skill-${String(index + 1).padStart(3, "0")})`
+    );
+    const profile = extractProfileFromVoyagerPayload(voyagerDashProfilePayload, {
+      now: fixedNow,
+      source: "linkedin-voyager.network.dashProfile",
+      supplementalPayloads: [
+        {
+          data: {
+            "*elements": ["urn:li:fsd_profileSkillCategory:(alex-rivera,top-skills)"]
+          },
+          included: [
+            {
+              entityUrn: "urn:li:fsd_profileSkillCategory:(alex-rivera,top-skills)",
+              $type: "com.linkedin.voyager.dash.identity.profile.SkillCategory",
+              "*skills": skillUrns,
+              paging: { count: 20, total: 97, start: 0 }
+            },
+            ...skillUrns.map((entityUrn, index) => ({
+              entityUrn,
+              skillUrn: entityUrn,
+              $type: "com.linkedin.voyager.dash.identity.profile.ProfileSkill",
+              title: {
+                text: `Skill ${String(index + 1).padStart(3, "0")}`
+              }
+            }))
+          ]
+        }
+      ],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+
+    expect(profile.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+      "linkedin-voyager.skills.partial"
+    );
+  });
+
+  it("keeps the richest endorsement count when duplicate skills merge", () => {
+    const profile = extractProfileFromVoyagerPayload(voyagerDashProfilePayload, {
+      now: fixedNow,
+      source: "linkedin-voyager.network.dashProfile",
+      supplementalPayloads: [
+        {
+          data: {
+            "*elements": [
+              "urn:li:fs_skill:(alex-rivera,typescript-visible)",
+              "urn:li:fs_skill:(alex-rivera,typescript-detail)"
+            ]
+          },
+          included: [
+            {
+              entityUrn: "urn:li:fs_skill:(alex-rivera,typescript-visible)",
+              $type: "com.linkedin.voyager.identity.profile.Skill",
+              endorsementCount: 1,
+              name: "TypeScript"
+            },
+            {
+              entityUrn: "urn:li:fs_skill:(alex-rivera,typescript-detail)",
+              $type: "com.linkedin.voyager.identity.profile.Skill",
+              endorsementCount: 12,
+              name: "TypeScript"
+            }
+          ]
+        }
+      ],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+
+    expect(profile.skills.find((skill) => skill.name === "TypeScript")?.endorsements).toBe(12);
+  });
+
+  it("deduplicates provider-partial supplemental course records", () => {
+    const profile = extractProfileFromVoyagerPayload(voyagerDashProfilePayload, {
+      now: fixedNow,
+      source: "linkedin-voyager.network.dashProfile",
+      supplementalPayloads: [
+        {
+          data: {
+            "*elements": [
+              "urn:li:fs_course:(alex-rivera,automation-provider)",
+              "urn:li:fs_course:(alex-rivera,automation-missing-provider)"
+            ]
+          },
+          included: [
+            {
+              entityUrn: "urn:li:fs_course:(alex-rivera,automation-provider)",
+              $type: "com.linkedin.voyager.identity.profile.Course",
+              name: "Accessible Automation Systems",
+              number: "AUT-201",
+              providerName: "Example University"
+            },
+            {
+              entityUrn: "urn:li:fs_course:(alex-rivera,automation-missing-provider)",
+              $type: "com.linkedin.voyager.identity.profile.Course",
+              name: "Accessible Automation Systems",
+              number: "AUT-201"
+            }
+          ]
+        }
+      ],
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+
+    expect(profile.courses).toHaveLength(1);
+    expect(profile.courses[0]).toMatchObject({
+      name: "AUT-201 - Accessible Automation Systems",
+      number: "AUT-201",
+      provider: "Example University"
+    });
+    expect(
+      profile.diagnostics.some(
+        (diagnostic) => diagnostic.code === "linkedin-voyager.courses.deduplicated"
+      )
+    ).toBe(true);
+  });
+
   it("extracts observed GraphQL Dash Voyager profile payloads", () => {
     const profile = extractProfileFromVoyagerPayload(voyagerDashGraphqlProfilePayload, {
       now: "2026-05-25T12:00:00.000Z",
@@ -437,6 +704,11 @@ describe("extraction", () => {
   });
 
   it("includes raw Voyager inventory only for verbose diagnostics", () => {
+    expect(shouldIncludeVerboseDiagnostics({ diagnostics: { includeAllFields: true } })).toBe(
+      false
+    );
+    expect(shouldIncludeVerboseDiagnostics({ diagnostics: { verbose: true } })).toBe(true);
+
     const quiet = extractProfileFromVoyagerPayload(voyagerDashGraphqlProfilePayload, {
       now: "2026-05-25T12:00:00.000Z",
       source: "linkedin-voyager.network.identityDashProfiles",
@@ -444,6 +716,17 @@ describe("extraction", () => {
     });
     expect(
       quiet.diagnostics.some((diagnostic) =>
+        diagnostic.code.startsWith("linkedin-voyager.inventory.")
+      )
+    ).toBe(false);
+    const fullFields = applyProfileSettings(quiet, {
+      diagnostics: { includeAllFields: true }
+    });
+    expect(
+      fullFields.diagnostics.some((diagnostic) => diagnostic.code === "linkedin-voyager.parsed")
+    ).toBe(true);
+    expect(
+      fullFields.diagnostics.some((diagnostic) =>
         diagnostic.code.startsWith("linkedin-voyager.inventory.")
       )
     ).toBe(false);
@@ -491,6 +774,23 @@ describe("extraction", () => {
     );
     expect(fields?.message).toContain("com.linkedin.voyager.dash.identity.profile.PositionGroup");
     expect(fields?.message).toContain("*profilePositionInPositionGroup");
+
+    const includeAllFieldsOnly = applyProfileSettings(verbose, {
+      diagnostics: { includeAllFields: true }
+    });
+    expect(
+      includeAllFieldsOnly.diagnostics.some((diagnostic) =>
+        diagnostic.code.startsWith("linkedin-voyager.inventory.")
+      )
+    ).toBe(false);
+    const verboseFiltered = applyProfileSettings(verbose, {
+      diagnostics: { includeAllFields: true, verbose: true }
+    });
+    expect(
+      verboseFiltered.diagnostics.some((diagnostic) =>
+        diagnostic.code.startsWith("linkedin-voyager.inventory.")
+      )
+    ).toBe(true);
   });
 
   it("applies data scope and diagnostic settings without dropping required identity", () => {
@@ -542,7 +842,7 @@ describe("exporters", () => {
         expect(result.contents).toBeTruthy();
       })
     );
-  });
+  }, 30_000);
 
   it("uses sanitized filename templates with format placeholders", async () => {
     const result = await exportProfile(profile(), "markdown", {
@@ -586,6 +886,7 @@ describe("exporters", () => {
     expect(csv).toContain("testScores");
     const markdown = exportMarkdown(profile());
     expect(markdown).toContain("---\nschema:");
+    expect(markdown).toContain(`- ${profile().skills[0]?.name}`);
     expect(markdown).toContain("## Licenses Certifications");
     expect(markdown).toContain("Credential Id: CERT-PRIVACY-1");
     expect(markdown).toContain("Roles: Title: Engineering Manager");
@@ -595,10 +896,91 @@ describe("exporters", () => {
     expect(markdown).toContain("## Featured");
     expect(markdown).toContain("Type: article");
     expect(markdown).toContain("## Test Scores");
+    expect(markdown).not.toContain("## Coverage Diagnostics");
     expect(new XMLParser().parse(exportXml(profile())).profile.schemaVersion).toBe(
       "linkedin-profile-exporter.profile.v1"
     );
     const workbook = await exportXlsx(profile());
     expect(workbook.byteLength).toBeGreaterThan(100);
+  }, 30_000);
+
+  it("includes compact Markdown coverage diagnostics only when diagnostics are retained", () => {
+    const source = fullProfile();
+    const withCoverage = {
+      ...source,
+      diagnostics: [
+        ...source.diagnostics,
+        {
+          code: "coverage.skills.capped",
+          level: "warning" as const,
+          message: "Skill recovery saw private detail text that must not be exported.",
+          source: "linkedin-voyager"
+        },
+        {
+          code: "coverage.skills.recovered",
+          level: "info" as const,
+          message: "Skill recovery found some detail rows.",
+          source: "linkedin-voyager"
+        },
+        {
+          code: "coverage.skills.complete",
+          level: "info" as const,
+          message: "Skill recovery reached the advertised total.",
+          source: "linkedin-voyager"
+        },
+        {
+          code: "coverage.courses.recovered",
+          level: "info" as const,
+          message: "Course recovery found exactly the default detail page size.",
+          source: "linkedin-voyager"
+        },
+        {
+          code: "coverage.work.unavailable",
+          level: "warning" as const,
+          message: "Work detail fetch failed after work data was already extracted.",
+          source: "linkedin-voyager"
+        },
+        {
+          code: "coverage.private-client-name.unavailable",
+          level: "warning" as const,
+          message: "Untrusted diagnostic labels must not be exported.",
+          source: "linkedin-voyager"
+        }
+      ]
+    };
+
+    const cleanMarkdown = exportMarkdown(applyProfileSettings(withCoverage, defaultSettings));
+    expect(cleanMarkdown).not.toContain("## Coverage Diagnostics");
+
+    const diagnosticMarkdown = exportMarkdown(
+      applyProfileSettings(withCoverage, { diagnostics: { includeAllFields: true } })
+    );
+    expect(diagnosticMarkdown).toContain("## Coverage Diagnostics");
+    expect(diagnosticMarkdown).not.toContain("Skills: recovered");
+    expect(diagnosticMarkdown).not.toContain("Skills: capped");
+    expect(diagnosticMarkdown).toContain("- Courses: recovered (1)");
+    expect(diagnosticMarkdown).not.toContain("Work: unavailable");
+    expect(diagnosticMarkdown).not.toContain("Private-client-name");
+    expect(diagnosticMarkdown).not.toContain("private detail text");
+  });
+
+  it("keeps readable sentence spacing in text exports", () => {
+    const exportedProfile = extractProfileFromHtml(
+      denseProfileHtml.replace(
+        "I build local-first tools that turn messy browser workflows into structured, reviewable data.",
+        "Fast extraction.I\u2019ve shipped exports. Costs fell 90%.I\u2019ve kept accuracy high."
+      ),
+      { now: fixedNow }
+    );
+
+    for (const contents of [
+      exportCanonicalJson(exportedProfile),
+      exportXml(exportedProfile),
+      exportMarkdown(exportedProfile)
+    ]) {
+      expect(contents).not.toContain("Fast extraction.I");
+      expect(contents).not.toContain("90%.I");
+      expect(contents).toContain("90%. I");
+    }
   });
 });

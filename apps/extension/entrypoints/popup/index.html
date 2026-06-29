@@ -4,9 +4,109 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LinkedIn Profile Exporter</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      body {
+        margin: 0;
+        width: min(420px, 100vw);
+        min-height: 136px;
+        background: #f2f6f4;
+        color: #17201b;
+      }
+
+      #root {
+        min-height: 136px;
+      }
+
+      .popup-boot {
+        box-sizing: border-box;
+        width: min(420px, 100vw);
+        padding: 16px;
+      }
+
+      .popup-boot__panel {
+        border: 1px solid #d1dad6;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 12px;
+        box-shadow: 0 18px 40px -30px rgba(23, 32, 27, 0.55);
+      }
+
+      .popup-boot__title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 650;
+        line-height: 24px;
+      }
+
+      .popup-boot__status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        border: 1px solid #a8c6e8;
+        border-radius: 999px;
+        background: #edf6ff;
+        padding: 4px 8px;
+        color: #17466f;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 16px;
+      }
+
+      .popup-boot__spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid #a8c6e8;
+        border-top-color: #17466f;
+        border-radius: 999px;
+        animation: popup-boot-spin 0.85s linear infinite;
+      }
+
+      .popup-boot__copy {
+        margin: 8px 0 0;
+        color: #46554e;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      @keyframes popup-boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .popup-boot__spinner {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="popup-boot" id="popup-boot-shell" aria-busy="true" aria-live="polite">
+        <section class="popup-boot__panel">
+          <p class="popup-boot__title">Profile Exporter</p>
+          <div class="popup-boot__status">
+            <span class="popup-boot__spinner" aria-hidden="true"></span>
+            <span>Connecting</span>
+          </div>
+          <p class="popup-boot__copy">Checking the active tab.</p>
+        </section>
+      </main>
+    </div>
     <script type="module" src="./main.tsx"></script>
   </body>
 </html>

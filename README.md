@@ -55,8 +55,9 @@ generic resume projection:
 | Export metadata | Capture timestamp, source URL, locale, generator, selected formats, and filename template.                                    |
 
 Clean exports omit provenance, confidence, and diagnostics by default. Turn on **Include
-all fields** in settings when you need field provenance, confidence scores, Voyager
-inventory diagnostics, and other troubleshooting metadata.
+all fields** in settings when you need field provenance, confidence scores, and normal
+diagnostics. Turn on **Verbose diagnostics** only when you need the heavier Voyager
+inventory details for troubleshooting.
 
 ## Local Commands
 
@@ -69,6 +70,8 @@ After the workspace is installed:
 pnpm install
 pnpm check:profile-output
 pnpm check:profile-output /path/to/profile-output.json
+pnpm check:profile-output /path/to/profile-output.xml
+pnpm check:profile-output /path/to/pasted-text.txt
 just quick
 just ci
 pnpm test:e2e
@@ -76,7 +79,9 @@ pnpm test:e2e
 
 The profile-output checker validates the canonical model, default metadata stripping,
 opt-in Include all fields behavior, and every export format. When a path is supplied,
-the command prints only aggregate counts, diagnostic codes, and export byte sizes.
+JSON, XML, pasted XML text, and pasted Markdown text outputs are accepted, and the
+command prints only aggregate counts, diagnostic codes, warning categories, and export
+byte sizes.
 
 Package GitHub Release assets after a clean release gate:
 

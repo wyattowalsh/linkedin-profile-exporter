@@ -11,6 +11,8 @@ from the canonical profile schema.
 - **THEN** the output parses as JSON, validates against the canonical schema, and omits
   provenance, confidence, and diagnostics unless the Include all fields setting is
   enabled before export.
+- **AND** verbose Voyager inventory diagnostics are emitted only when the separate
+  Verbose diagnostics setting is enabled.
 
 #### Scenario: JSON Resume export
 
@@ -58,11 +60,18 @@ separators, and schema-valid XML from the canonical profile schema.
 - **WHEN** a profile is exported as Markdown
 - **THEN** the output starts with frontmatter metadata and includes a readable
   resume/profile body with every populated canonical repeat section.
+- **AND** pasted Markdown text can be checked by `pnpm check:profile-output <path>` as
+  aggregate assurance without reconstructing or printing private profile content.
+- **AND** default Markdown omits diagnostics, while Markdown exported after Include all
+  fields or verbose diagnostics are retained includes an aggregate-only Coverage
+  Diagnostics section with section status counts and no raw LinkedIn payload content.
 
 #### Scenario: XML parses
 
 - **WHEN** a profile is exported as XML
-- **THEN** the output parses as XML and contains the canonical schema version.
+- **THEN** the output parses as XML, contains the canonical schema version, and can be
+  validated by `pnpm check:profile-output <path>` with schema-aware array and scalar
+  handling.
 
 ### Requirement: PDF out of scope
 

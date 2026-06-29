@@ -2,7 +2,7 @@ import { Check, Clipboard, Download, Trash2 } from "lucide-react";
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { toast, Toaster } from "sonner";
-import { EXPORT_FORMATS } from "@linkedin-profile-exporter/core/exporters";
+import { EXPORT_FORMATS } from "@linkedin-profile-exporter/core/export-formats";
 import type { ExportFormat } from "@linkedin-profile-exporter/core/schema";
 import {
   defaultSettings,
@@ -54,9 +54,12 @@ function OptionsApp() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-5 p-6">
+    <main className="mx-auto min-h-dvh max-w-5xl space-y-5 bg-[#f2f6f4] p-5 text-[#17201b] sm:p-6">
       <header className="flex items-center gap-3">
-        <ProductMark className="rounded-xl shadow-sm" size={48} />
+        <ProductMark
+          className="rounded-lg shadow-[0_10px_24px_-20px_rgba(23,32,27,0.75)]"
+          size={48}
+        />
         <div className="min-w-0">
           <h1 className="text-xl font-semibold">Settings</h1>
           <p className="text-sm text-[#58665f]">
@@ -65,13 +68,13 @@ function OptionsApp() {
         </div>
       </header>
 
-      <section className="rounded-md border border-[#cbd8d1] bg-white p-4">
+      <section className="rounded-lg border border-[#cbd8d1] bg-white p-5 shadow-[0_18px_40px_-34px_rgba(23,32,27,0.65)]">
         <h2 className="text-base font-medium">Workflow</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm">
             Automation
             <select
-              className="rounded-md border border-[#cbd8d1] p-2"
+              className="min-h-11 rounded-md border border-[#cbd8d1] bg-white p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#225c4a]"
               value={settings.automationMode}
               onChange={(event) => {
                 const automationMode = event.currentTarget.value as Settings["automationMode"];
@@ -86,7 +89,7 @@ function OptionsApp() {
           <label className="grid gap-1 text-sm">
             Delivery
             <select
-              className="rounded-md border border-[#cbd8d1] p-2"
+              className="min-h-11 rounded-md border border-[#cbd8d1] bg-white p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#225c4a]"
               value={settings.deliveryMode}
               onChange={(event) => {
                 const deliveryMode = event.currentTarget.value as Settings["deliveryMode"];
@@ -112,12 +115,12 @@ function OptionsApp() {
         </div>
       </section>
 
-      <section className="rounded-md border border-[#cbd8d1] bg-white p-4">
+      <section className="rounded-lg border border-[#cbd8d1] bg-white p-5 shadow-[0_18px_40px_-34px_rgba(23,32,27,0.65)]">
         <h2 className="text-base font-medium">Export</h2>
         <label className="mt-3 grid gap-1 text-sm">
           Filename template
           <input
-            className="rounded-md border border-[#cbd8d1] p-2"
+            className="min-h-11 rounded-md border border-[#cbd8d1] bg-white p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#225c4a]"
             value={settings.filenameTemplate}
             onChange={(event) =>
               setSettings((current) => ({
@@ -148,7 +151,7 @@ function OptionsApp() {
         </p>
       </section>
 
-      <section className="rounded-md border border-[#cbd8d1] bg-white p-4">
+      <section className="rounded-lg border border-[#cbd8d1] bg-white p-5 shadow-[0_18px_40px_-34px_rgba(23,32,27,0.65)]">
         <h2 className="text-base font-medium">Data Scope</h2>
         <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           {Object.entries(settings.dataScope).map(([key, value]) => (
@@ -167,7 +170,7 @@ function OptionsApp() {
         </div>
       </section>
 
-      <section className="rounded-md border border-[#cbd8d1] bg-white p-4">
+      <section className="rounded-lg border border-[#cbd8d1] bg-white p-5 shadow-[0_18px_40px_-34px_rgba(23,32,27,0.65)]">
         <h2 className="text-base font-medium">Privacy And Diagnostics</h2>
         <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           <Toggle
@@ -188,10 +191,7 @@ function OptionsApp() {
                 ...current,
                 diagnostics: {
                   ...current.diagnostics,
-                  includeAllFields: checked,
-                  includeConfidence: checked,
-                  includeProvenance: checked,
-                  verbose: checked
+                  includeAllFields: checked
                 }
               }))
             }
@@ -200,7 +200,6 @@ function OptionsApp() {
             checked={
               settings.diagnostics.includeAllFields || settings.diagnostics.includeProvenance
             }
-            disabled={settings.diagnostics.includeAllFields}
             label="Include provenance"
             onChange={(checked) =>
               save((current) => ({
@@ -213,7 +212,6 @@ function OptionsApp() {
             checked={
               settings.diagnostics.includeAllFields || settings.diagnostics.includeConfidence
             }
-            disabled={settings.diagnostics.includeAllFields}
             label="Include confidence"
             onChange={(checked) =>
               save((current) => ({
@@ -223,8 +221,7 @@ function OptionsApp() {
             }
           />
           <Toggle
-            checked={settings.diagnostics.includeAllFields || settings.diagnostics.verbose}
-            disabled={settings.diagnostics.includeAllFields}
+            checked={settings.diagnostics.verbose}
             label="Verbose diagnostics"
             onChange={(checked) =>
               save((current) => ({
@@ -268,11 +265,15 @@ function Toggle({
 }) {
   return (
     <label
-      className={`flex min-h-10 items-center gap-2 rounded-md border border-[#cbd8d1] bg-[#f8faf8] p-2 ${
-        disabled ? "opacity-70" : ""
+      aria-disabled={disabled}
+      className={`flex min-h-11 touch-manipulation items-center gap-2 rounded-md border border-[#cbd8d1] bg-[#f8faf8] p-2 text-sm transition-[background-color,border-color,opacity,transform] duration-200 ease-out ${
+        disabled
+          ? "cursor-not-allowed opacity-70 active:scale-100"
+          : "cursor-pointer active:scale-[0.98]"
       }`}
     >
       <input
+        className="size-4"
         type="checkbox"
         checked={checked}
         disabled={disabled}

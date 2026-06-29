@@ -30,6 +30,13 @@ linked entities exposed by the page.
   recommendations, featured items, organizations, interests, links, and accessible
   imagery metadata are returned.
 
+#### Scenario: Readable sentence joins
+
+- **WHEN** DOM or Voyager text contains joined sentence boundaries such as
+  `Fast extraction.I’ve`, `90%.I’ve`, `).Next`, or `].Next`
+- **THEN** extracted and exported text inserts a readable sentence space without
+  splitting URLs, acronyms, or already spaced sentences.
+
 #### Scenario: Voyager linked-entity extraction
 
 - **WHEN** extraction runs against a local Voyager FullProfileWithEntities fixture
@@ -40,6 +47,39 @@ linked entities exposed by the page.
   contributors/associations, publication authors/descriptions, volunteer causes,
   organization detail fields, and interest URLs are normalized from entity URNs, backend
   URNs, and relative LinkedIn URLs without storing raw Voyager payloads.
+
+#### Scenario: Paged Voyager sections are completed
+
+- **WHEN** a same-profile Voyager profile payload advertises a paged first set of skills
+  or courses, such as 20 visible items out of a larger total
+- **THEN** the extension fetches same-profile section supplements, section detail pages,
+  and safe same-section pagination links before exporting the merged unique section
+  items instead of stopping at the first visible page.
+- **AND** when same-page section fetches cannot expose a capped section, the extension
+  may render a temporary same-profile detail document, request only that section, merge
+  the result, and remove the temporary surface.
+- **AND** live-style skill category payloads with nested or untyped skill records are
+  traversed before reporting the skill section as complete.
+- **AND** skill category collection/container records are used for pagination and totals
+  but do not count as recovered skill items.
+- **AND** paging metadata such as `count`, `total`, or advertised section totals is used
+  only as a recovery target; it does not count as recovered profile items unless actual
+  entities or rendered rows are present.
+- **AND** provider-partial duplicate course rows are merged while retaining the richer
+  provider metadata.
+- **AND** aggregate diagnostics identify complete, recovered, partial, capped,
+  unavailable, paginated, or duplicate-normalized sections without storing raw Voyager
+  payloads.
+- **AND** inaccessible or private sections are reported as unavailable only when the
+  final extracted count is zero; nonzero sections with failed recovery attempts are
+  reported as partial or capped rather than unavailable.
+
+#### Scenario: Visible social counts fill Voyager omissions
+
+- **WHEN** Voyager profile data omits follower or connection totals that are visible on
+  the current profile page
+- **THEN** extraction fills the missing identity social count fields from the visible
+  page text without overriding counts supplied by Voyager.
 
 #### Scenario: Verbose Voyager inventory diagnostics
 

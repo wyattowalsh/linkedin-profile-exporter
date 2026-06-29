@@ -354,6 +354,44 @@ export const voyagerSupplementalSkillsPayload = {
   ]
 } as const;
 
+const manySkillUrns = Array.from({ length: 97 }, (_, index) =>
+  index === 0
+    ? "urn:li:fs_skill:(alex-rivera,typescript)"
+    : `urn:li:fs_skill:(alex-rivera,skill-${String(index + 1).padStart(3, "0")})`
+);
+
+export const voyagerSupplementalManySkillsPayload = {
+  data: {
+    "*elements": manySkillUrns
+  },
+  included: manySkillUrns.map((entityUrn, index) => ({
+    entityUrn,
+    $type: "com.linkedin.voyager.identity.profile.Skill",
+    name: index === 0 ? "TypeScript" : `Skill ${String(index + 1).padStart(3, "0")}`
+  }))
+} as const;
+
+const manyCourseUrns = Array.from(
+  { length: 28 },
+  (_, index) => `urn:li:fs_course:(alex-rivera,course-${String(index + 1).padStart(3, "0")})`
+);
+
+export const voyagerSupplementalManyCoursesPayload = {
+  data: {
+    "*elements": manyCourseUrns
+  },
+  included: manyCourseUrns.map((entityUrn, index) => ({
+    entityUrn,
+    $type: "com.linkedin.voyager.identity.profile.Course",
+    name:
+      index === 0
+        ? "Accessible Automation Systems"
+        : `Course ${String(index + 1).padStart(3, "0")}`,
+    number: index === 0 ? "AUT-201" : `CRS-${String(index + 1).padStart(3, "0")}`,
+    ...(index === 0 ? { providerName: "Example University" } : {})
+  }))
+} as const;
+
 export const voyagerDashProfilePayload = {
   data: {
     "*profile": "urn:li:fsd_profile:alex-rivera-fixture",

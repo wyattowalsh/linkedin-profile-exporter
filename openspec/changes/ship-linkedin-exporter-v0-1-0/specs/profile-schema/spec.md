@@ -46,4 +46,6 @@ source URLs, capture metadata, and export metadata.
 
 - **WHEN** default settings are applied before canonical JSON export
 - **THEN** field provenance, confidence, diagnostics, and verbose inventory details are
-  omitted unless Include all fields is explicitly enabled.
+  omitted.
+- **AND** Include all fields restores provenance, confidence, and normal diagnostics,
+  while verbose inventory details require the separate Verbose diagnostics setting.

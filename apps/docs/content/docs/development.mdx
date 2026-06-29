@@ -25,20 +25,23 @@ pnpm --filter @linkedin-profile-exporter/docs build
 asserts that diagnostics/provenance/confidence are stripped, applies `includeAllFields`, and exports
 all supported formats.
 
-To validate a local profile JSON file without committing it:
+To validate a local profile JSON, XML, pasted XML text, or pasted Markdown text file without
+committing it:
 
 ```bash
 pnpm check:profile-output /absolute/path/to/profile.json
+pnpm check:profile-output /absolute/path/to/profile.xml
+pnpm check:profile-output /absolute/path/to/pasted-text.txt
 ```
 
-The command prints schema version, section counts, diagnostic codes, and output byte sizes. It does
-not print names, profile URLs, role descriptions, or raw profile sections.
+The command prints schema version, section counts, diagnostic codes, warning categories, and output
+byte sizes. It does not print names, profile URLs, role descriptions, or raw profile sections.
 
 ## Runtime debugging
 
-| Symptom                               | Check                                                                            |
-| ------------------------------------- | -------------------------------------------------------------------------------- |
-| Toolbar action inactive               | Confirm the active tab URL matches `https://www.linkedin.com/in/...`.            |
-| Popup says content script unavailable | Reload the LinkedIn profile tab, then reopen the popup.                          |
-| Extraction is slow                    | Watch the phase label; Voyager attempts are timeout-bounded before DOM fallback. |
-| Sections are missing                  | Enable Include all fields, extract again, and inspect diagnostics inventory.     |
+| Symptom                              | Check                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Toolbar action unbadged              | Confirm the active tab URL matches `https://www.linkedin.com/in/...`; off-profile tabs stay clickable but unbadged.                                                                                                                                                                                               |
+| Popup cannot recover the profile tab | Confirm the generated target supports runtime injection and the manifest lists the LinkedIn content script.                                                                                                                                                                                                       |
+| Extraction is slow                   | Watch the phase label; Voyager, detail-page, temporary detail-render, and pagination attempts are timeout-bounded before DOM fallback.                                                                                                                                                                            |
+| Sections are missing                 | Enable Include all fields, extract again, and inspect `coverage.<section>.*` diagnostics plus checker default-page-size warnings. Markdown exports include a compact Coverage Diagnostics section only when troubleshooting fields are retained. Enable Verbose diagnostics only when inventory detail is needed. |

@@ -1,25 +1,46 @@
-import ExcelJS from "exceljs";
 import { XMLBuilder } from "fast-xml-parser";
+import type { Workbook as ExcelWorkbook } from "exceljs";
 import { stringify as stringifyYaml } from "yaml";
 import { type ExportFormat, type Profile, validateProfile } from "./schema";
+export { EXPORT_FORMATS, isTextExportFormat, TEXT_EXPORT_FORMATS } from "./export-formats";
+import { normalizeReadableText } from "./text";
 
-export const EXPORT_FORMATS = [
-  "json",
-  "json-resume",
-  "yaml",
-  "csv",
-  "xlsx",
-  "xml",
-  "markdown"
-] as const satisfies readonly ExportFormat[];
-export const TEXT_EXPORT_FORMATS = [
-  "json",
-  "json-resume",
-  "yaml",
-  "csv",
-  "xml",
-  "markdown"
-] as const satisfies readonly ExportFormat[];
+const COVERAGE_KNOWN_PAGE_CAPS: Record<string, number> = {
+  courses: 20,
+  featured: 20,
+  projects: 20,
+  skills: 20
+};
+const COVERAGE_SECTIONS = new Set([
+  "connections",
+  "courses",
+  "education",
+  "featured",
+  "followers",
+  "honorsAwards",
+  "imagery",
+  "interests",
+  "languages",
+  "licensesCertifications",
+  "links",
+  "organizations",
+  "patents",
+  "projects",
+  "publications",
+  "recommendations",
+  "skills",
+  "testScores",
+  "volunteering",
+  "work"
+]);
+const COVERAGE_STATES = new Set([
+  "capped",
+  "complete",
+  "deduplicated",
+  "partial",
+  "recovered",
+  "unavailable"
+]);
 
 export interface ExportOptions {
   filenameTemplate?: string;
@@ -185,6 +206,7 @@ export function exportCsv(profileInput: unknown): string {
 }
 
 export async function exportXlsx(profileInput: unknown): Promise<Uint8Array> {
+  const ExcelJS = (await import("exceljs")).default;
   const profile = validateProfile(profileInput);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "linkedin-profile-exporter";
@@ -239,14 +261,90 @@ export function exportMarkdown(profileInput: unknown): string {
     ),
     "",
     "## Skills",
-    profile.skills.map((skill) => skill.name).join(", ") || "No accessible skills captured.",
+    ...markdownSkills(profile),
     "",
     ...repeatSections(profile)
       .filter((section) => !["work", "education", "skills"].includes(section.name))
-      .flatMap((section) => markdownSection(section.name, section.items))
+      .flatMap((section) => markdownSection(section.name, section.items)),
+    ...markdownCoverageDiagnostics(profile)
   ];
 
   return `${lines.filter((line, index) => line !== "" || lines[index - 1] !== "").join("\n")}\n`;
+}
+
+function markdownCoverageDiagnostics(profile: Profile): string[] {
+  const summaries = coverageDiagnosticSummaries(profile);
+  if (!summaries.length) return [];
+  return ["", "## Coverage Diagnostics", ...summaries.map((summary) => `- ${summary}`)];
+}
+
+function coverageDiagnosticSummaries(profile: Profile): string[] {
+  const summaries: string[] = [];
+  const sectionStates = new Map<string, Set<string>>();
+  for (const diagnostic of profile.diagnostics) {
+    if (diagnostic.code === "coverage.pagination.exhausted") {
+      summaries.push("Pagination: exhausted");
+      continue;
+    }
+    if (diagnostic.code === "coverage.budget.exhausted") {
+      summaries.push("Recovery budget: exhausted");
+      continue;
+    }
+    const match = /^coverage\.([^.]+)\.([^.]+)$/.exec(diagnostic.code);
+    if (!match) continue;
+    const section = match[1] ?? "";
+    const state = match[2] ?? "";
+    if (!COVERAGE_SECTIONS.has(section) || !COVERAGE_STATES.has(state)) continue;
+    const states = sectionStates.get(section) ?? new Set<string>();
+    states.add(state);
+    sectionStates.set(section, states);
+  }
+  for (const [section, states] of sectionStates) {
+    const count = coverageSectionCount(profile, section);
+    const primaryState = coverageSummaryState(section, states, count);
+    if (primaryState) summaries.push(`${sectionTitle(section)}: ${primaryState} (${count})`);
+    if (states.has("deduplicated")) {
+      summaries.push(`${sectionTitle(section)}: deduplicated (${count})`);
+    }
+  }
+  return Array.from(new Set(summaries));
+}
+
+function markdownSkills(profile: Profile): string[] {
+  if (!profile.skills.length) return ["No accessible skills captured."];
+  return profile.skills.map((skill) => `- ${formatMarkdownText(skill.name)}`);
+}
+
+function coverageSummaryState(
+  section: string,
+  states: Set<string>,
+  count: number
+): string | undefined {
+  if (states.has("complete")) return undefined;
+  if (states.has("partial")) return "partial";
+  if (states.has("capped")) return "capped";
+  if (states.has("unavailable")) return count > 0 ? undefined : "unavailable";
+  if (!states.has("recovered")) return undefined;
+  const knownCap = COVERAGE_KNOWN_PAGE_CAPS[section];
+  if (knownCap && count === knownCap) return undefined;
+  return "recovered";
+}
+
+function coverageSectionCount(profile: Profile, section: string): number {
+  if (section === "licensesCertifications") return profile.licensesCertifications.length;
+  if (section === "honorsAwards") return profile.honorsAwards.length;
+  if (section === "testScores") return profile.testScores.length;
+  if (section === "links") return profile.identity.links.length;
+  if (section === "imagery") {
+    return (
+      Number(Boolean(profile.identity.imagery?.profileImageUrl)) +
+      Number(Boolean(profile.identity.imagery?.backgroundImageUrl))
+    );
+  }
+  if (section === "connections") return profile.identity.connections ? 1 : 0;
+  if (section === "followers") return profile.identity.followers ? 1 : 0;
+  const value = profile[section as keyof Profile];
+  return Array.isArray(value) ? value.length : 0;
 }
 
 function repeatSections(
@@ -323,7 +421,7 @@ function labelize(value: string): string {
 }
 
 function formatMarkdownText(value: string): string {
-  return value.replace(/([a-z0-9][.!?])(?=[A-Z][a-z]+(?:\s|$))/g, "$1 ");
+  return normalizeReadableText(value);
 }
 
 function flatten(
@@ -381,7 +479,7 @@ function csvEscape(value: string): string {
 }
 
 function addWorksheet(
-  workbook: ExcelJS.Workbook,
+  workbook: ExcelWorkbook,
   name: string,
   items: Array<Record<string, unknown>>
 ): void {

@@ -9,14 +9,13 @@ import {
   Trash2,
   XCircle
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import type { ReadinessResult } from "@linkedin-profile-exporter/core/extraction";
-import { EXPORT_FORMATS } from "@linkedin-profile-exporter/core/exporters";
+import { EXPORT_FORMATS, isTextExportFormat } from "@linkedin-profile-exporter/core/export-formats";
 import type { ExportFormat, Profile } from "@linkedin-profile-exporter/core/schema";
 import type { Settings as ProfileSettings } from "@linkedin-profile-exporter/core/settings";
-import { blockedClipboardFormats, formatsForDelivery } from "../profile-delivery";
-import { isTextExportFormat } from "../export-download";
+import { blockedClipboardFormats, formatsForDelivery } from "../delivery-formats";
 import { cn } from "../lib/utils";
 import type { ExtractionStatus } from "../messaging";
 import { Button } from "./button";
@@ -32,6 +31,7 @@ interface ProfileExporterPanelProps {
   onDeliveryModeChange: (deliveryMode: ProfileSettings["deliveryMode"]) => void;
   onExtract: () => void;
   onOpenSettings?: () => void;
+  onRefresh?: () => void;
   onToggleFormat: (format: ExportFormat) => void;
   profile: Profile | null;
   readiness: ReadinessResult | null;
@@ -49,21 +49,23 @@ export function ProfileExporterPanel({
   onDeliveryModeChange,
   onExtract,
   onOpenSettings,
+  onRefresh,
   onToggleFormat,
   profile,
   readiness,
   settings,
   surface
 }: ProfileExporterPanelProps) {
+  const reduceMotion = useReducedMotion();
   const selectedFormats = settings.outputFormats;
   const deliverableFormats = formatsForDelivery(settings.deliveryMode, selectedFormats);
   const copyBlockedFormats =
     settings.deliveryMode === "clipboard" ? blockedClipboardFormats(selectedFormats) : [];
   const primaryAction = actionMeta(settings.deliveryMode);
   const actionDisabled =
-    busy || !deliverableFormats.length || (!profile && readiness?.state === "unavailable");
-  const shellClass = surface === "popup" ? "w-[420px]" : "min-h-screen min-w-[380px]";
-  const contentClass = surface === "popup" ? "space-y-3 p-4" : "mx-auto max-w-xl space-y-3 p-4";
+    busy || !deliverableFormats.length || (!profile && readiness?.state !== "ready");
+  const shellClass = surface === "popup" ? "w-screen max-w-[420px]" : "min-h-dvh min-w-[380px]";
+  const contentClass = surface === "popup" ? "space-y-3 p-4" : "mx-auto max-w-xl space-y-4 p-5";
   const status =
     busy && extractionStatus
       ? extractionStatusMeta(extractionStatus)
@@ -71,14 +73,23 @@ export function ProfileExporterPanel({
   const statusDescription =
     busy && extractionStatus
       ? (extractionStatus.detail ?? readiness?.reason ?? "Extracting this profile locally.")
-      : (readiness?.reason ?? "Checking the active tab.");
+      : (readiness?.reason ?? "Connecting to the active tab.");
 
   return (
-    <main className={cn(shellClass, "bg-[#f4f6f7] text-[#17201b]")}>
-      <header className="border-b border-[#d9e0dd] bg-white px-4 py-3">
+    <main
+      aria-busy={busy}
+      className={cn(
+        shellClass,
+        "bg-[#f2f6f4] text-[#17201b] [background-image:linear-gradient(180deg,rgba(255,255,255,0.86),rgba(242,246,244,0.98))]"
+      )}
+    >
+      <header className="border-b border-[#d9e0dd] bg-white/95 px-4 py-3 shadow-[0_12px_24px_-24px_rgba(23,32,27,0.65)]">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <ProductMark className="rounded-lg shadow-sm" size={40} />
+            <ProductMark
+              className="rounded-lg shadow-[0_10px_24px_-20px_rgba(23,32,27,0.75)]"
+              size={40}
+            />
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold">Profile Exporter</h1>
               <p className="mt-0.5 truncate text-xs text-[#5f6d66]">
@@ -88,7 +99,7 @@ export function ProfileExporterPanel({
           </div>
           {onOpenSettings ? (
             <Button
-              className="h-9 shrink-0 px-2"
+              className="min-h-10 shrink-0 px-2"
               variant="ghost"
               title="Open settings"
               onClick={onOpenSettings}
@@ -102,11 +113,12 @@ export function ProfileExporterPanel({
 
       <div className={contentClass}>
         <motion.section
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-md border border-[#d1dad6] bg-white p-3 shadow-sm"
+          initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+          animate={reduceMotion ? false : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+          className="overflow-hidden rounded-lg border border-[#d1dad6] bg-white shadow-[0_18px_40px_-30px_rgba(23,32,27,0.55)]"
         >
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-3 p-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span
@@ -127,15 +139,30 @@ export function ProfileExporterPanel({
                 {statusDescription}
               </p>
             </div>
-            <Button
-              className="h-10 shrink-0 px-3"
-              disabled={busy || readiness?.state === "unavailable"}
-              onClick={onExtract}
-            >
-              <RefreshCcw size={16} className={busy ? "animate-spin" : undefined} />
-              {busy ? "Extracting" : "Extract"}
-            </Button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {profile && onRefresh ? (
+                <Button
+                  aria-label="Refresh from LinkedIn"
+                  className="h-10 min-h-10 px-2"
+                  disabled={busy || !readiness || readiness.state === "unavailable"}
+                  onClick={onRefresh}
+                  title="Refresh from LinkedIn"
+                  variant="secondary"
+                >
+                  <RefreshCcw size={15} />
+                </Button>
+              ) : null}
+              <Button
+                className="h-10 shrink-0 px-3"
+                disabled={busy || !readiness || readiness.state === "unavailable"}
+                onClick={onExtract}
+              >
+                <RefreshCcw size={16} className={busy ? "animate-spin" : undefined} />
+                {busy ? "Extracting" : "Extract"}
+              </Button>
+            </div>
           </div>
+          {busy ? <BusyBar /> : null}
         </motion.section>
 
         {profile ? (
@@ -149,7 +176,7 @@ export function ProfileExporterPanel({
             <h2 className="text-sm font-semibold">Settings</h2>
             {onOpenSettings ? (
               <Button
-                className="h-8 px-2 text-xs"
+                className="min-h-9 px-2 text-xs"
                 variant="ghost"
                 title="Open full settings"
                 onClick={onOpenSettings}
@@ -203,7 +230,7 @@ export function ProfileExporterPanel({
 
         {fallbackText ? (
           <textarea
-            className="h-28 w-full resize-none rounded-md border border-[#cbd8d1] bg-white p-2 text-xs text-[#24322c]"
+            className="h-28 w-full resize-none rounded-md border border-[#cbd8d1] bg-white p-2 font-mono text-xs text-[#24322c]"
             readOnly
             value={fallbackText}
             aria-label="Clipboard fallback text"
@@ -212,14 +239,14 @@ export function ProfileExporterPanel({
 
         <footer className="grid grid-cols-[auto_1fr] gap-2">
           <Button
-            className="size-10 px-0"
+            className="size-11 px-0"
             variant="secondary"
             title="Clear local profile"
             onClick={onClear}
           >
             <Trash2 size={16} />
           </Button>
-          <Button className="h-10 justify-center" disabled={actionDisabled} onClick={onDeliver}>
+          <Button className="min-h-11 justify-center" disabled={actionDisabled} onClick={onDeliver}>
             {primaryAction.icon}
             {primaryAction.label}
           </Button>
@@ -230,6 +257,9 @@ export function ProfileExporterPanel({
 }
 
 function ProfileSnapshot({ profile }: { profile: Profile }) {
+  const stats = profileStats(profile);
+  const completenessNotes = profileCompletenessNotes(profile);
+
   return (
     <section className="rounded-md border border-[#d1dad6] bg-white p-3 shadow-sm">
       <div className="min-w-0">
@@ -240,16 +270,26 @@ function ProfileSnapshot({ profile }: { profile: Profile }) {
           </p>
         ) : null}
       </div>
-      <dl className="mt-3 grid grid-cols-4 gap-2">
-        <Metric label="Roles" value={profile.work.length} />
-        <Metric label="Schools" value={profile.education.length} />
-        <Metric label="Skills" value={profile.skills.length} />
-        <Metric
-          label="Notes"
-          value={profile.diagnostics.length}
-          tone={profile.diagnostics.length ? "amber" : "neutral"}
-        />
+      <dl aria-label="Profile stats" className="mt-2 grid grid-cols-5 gap-1">
+        {stats.map((stat) => (
+          <Metric
+            key={stat.label}
+            label={stat.label}
+            title={stat.title}
+            value={stat.value}
+            tone={stat.tone}
+          />
+        ))}
       </dl>
+      {completenessNotes.length ? (
+        <ul className="mt-2 grid grid-cols-1 gap-1 text-[10px] font-medium leading-4 text-[#6c4d13]">
+          {completenessNotes.map((note) => (
+            <li key={note} className="truncate rounded border border-[#ead9a6] bg-[#fff8e6] px-1.5">
+              {note}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }
@@ -270,18 +310,27 @@ function EmptyProfileState({
     );
   }
 
-  const copy =
-    readiness?.state === "ready"
+  const copy = !readiness
+    ? { title: "Connecting", body: "Checking the active tab." }
+    : readiness.state === "ready"
       ? { title: "Ready to extract", body: "Click Extract to load this profile locally." }
-      : readiness?.state === "unavailable"
+      : readiness.state === "unavailable"
         ? { title: "No LinkedIn profile tab", body: readiness.reason }
-        : { title: "Profile not ready", body: readiness?.reason ?? "Checking the active tab." };
+        : { title: "Profile not ready", body: readiness.reason };
 
   return (
     <section className="rounded-md border border-dashed border-[#c7d5ce] bg-white px-3 py-4 text-center shadow-sm">
       <p className="text-sm font-medium">{copy.title}</p>
       <p className="mt-1 text-xs leading-5 text-[#6a766f]">{copy.body}</p>
     </section>
+  );
+}
+
+function BusyBar() {
+  return (
+    <div className="h-1 overflow-hidden border-t border-[#dce5e1] bg-[#edf4f1]" aria-hidden="true">
+      <div className="h-full w-1/2 origin-left animate-[lpe-progress_1.35s_ease-in-out_infinite] bg-[#225c4a]" />
+    </div>
   );
 }
 
@@ -300,7 +349,7 @@ function DeliveryToggle({
     <button
       aria-pressed={active}
       className={cn(
-        "inline-flex h-9 items-center justify-center gap-2 rounded-md border px-2 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#225c4a]",
+        "inline-flex min-h-11 touch-manipulation cursor-pointer items-center justify-center gap-2 rounded-md border px-2 text-xs font-semibold transition-[background-color,border-color,color,transform] duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#225c4a] active:scale-[0.98]",
         active
           ? "border-[#1f6b54] bg-[#e8f5ef] text-[#174c3c]"
           : "border-[#d6e0dc] bg-[#f8faf9] text-[#46554e] hover:border-[#8db4a6]"
@@ -328,11 +377,11 @@ function FormatToggle({
   return (
     <label
       className={cn(
-        "flex h-10 cursor-pointer items-center justify-between gap-1 rounded-md border px-2 text-xs font-medium transition focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#225c4a]",
+        "flex min-h-11 touch-manipulation cursor-pointer items-center justify-between gap-1 rounded-md border px-2 text-xs font-semibold transition-[background-color,border-color,color,opacity,transform] duration-200 ease-out focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#225c4a] active:scale-[0.98]",
         checked
           ? "border-[#1f6b54] bg-[#e8f5ef] text-[#174c3c]"
           : "border-[#d6e0dc] bg-[#f8faf9] text-[#46554e]",
-        disabled ? "cursor-not-allowed opacity-45" : "hover:border-[#8db4a6]"
+        disabled ? "cursor-not-allowed opacity-45 active:scale-100" : "hover:border-[#8db4a6]"
       )}
       title={disabled ? "Clipboard supports text formats only" : format}
     >
@@ -351,24 +400,258 @@ function FormatToggle({
 
 function Metric({
   label,
+  title,
   value,
   tone = "neutral"
 }: {
   label: string;
-  value: number;
-  tone?: "neutral" | "amber";
+  title?: string | undefined;
+  value: string;
+  tone?: "neutral" | "amber" | undefined;
 }) {
   return (
     <div
       className={cn(
-        "rounded-md border px-2 py-2",
+        "min-w-0 rounded border px-1.5 py-1",
         tone === "amber" ? "border-[#ead9a6] bg-[#fff8e6]" : "border-[#e0e8e4] bg-[#f7faf9]"
       )}
+      title={title}
     >
-      <dt className="truncate text-[11px] text-[#68766f]">{label}</dt>
-      <dd className="mt-0.5 text-base font-semibold leading-none">{value}</dd>
+      <dt className="truncate text-[10px] leading-3 text-[#68766f]">{label}</dt>
+      <dd className="mt-0.5 truncate text-sm font-semibold leading-4">{value}</dd>
     </div>
   );
+}
+
+function profileStats(profile: Profile): Array<{
+  label: string;
+  title?: string | undefined;
+  tone?: "neutral" | "amber" | undefined;
+  value: string;
+}> {
+  const nestedRoles = profile.work.reduce((count, item) => count + item.roles.length, 0);
+  const imageCount =
+    Number(Boolean(profile.identity.imagery?.profileImageUrl)) +
+    Number(Boolean(profile.identity.imagery?.backgroundImageUrl));
+  const skillWarning = sectionHasActiveCoverageWarning(profile, "skills");
+  const courseWarning = sectionHasActiveCoverageWarning(profile, "courses");
+  const diagnosticsPresent = profile.diagnostics.length > 0;
+  return [
+    { label: "Work", value: statValue(profile.work.length) },
+    { label: "Roles", value: statValue(nestedRoles) },
+    { label: "Edu", value: statValue(profile.education.length) },
+    {
+      label: "Skills",
+      title: skillWarning ? "Skill section may be capped or partial" : undefined,
+      tone: skillWarning ? "amber" : "neutral",
+      value: statValue(profile.skills.length)
+    },
+    { label: "Certs", value: statValue(profile.licensesCertifications.length) },
+    { label: "Proj", value: statValue(profile.projects.length) },
+    { label: "Pubs", value: statValue(profile.publications.length) },
+    { label: "Vol", value: statValue(profile.volunteering.length) },
+    { label: "Honors", value: statValue(profile.honorsAwards.length) },
+    { label: "Scores", value: statValue(profile.testScores.length) },
+    { label: "Patents", value: statValue(profile.patents.length) },
+    { label: "Lang", value: statValue(profile.languages.length) },
+    {
+      label: "Courses",
+      title: courseWarning ? "Course section has recovery or dedupe diagnostics" : undefined,
+      tone: courseWarning ? "amber" : "neutral",
+      value: statValue(profile.courses.length)
+    },
+    { label: "Recs", value: statValue(profile.recommendations.length) },
+    { label: "Feat", value: statValue(profile.featured.length) },
+    { label: "Orgs", value: statValue(profile.organizations.length) },
+    { label: "Int", value: statValue(profile.interests.length) },
+    { label: "Links", value: statValue(profile.identity.links.length) },
+    { label: "Img", value: statValue(imageCount) },
+    {
+      label: "Diag",
+      tone: diagnosticsPresent ? "amber" : "neutral",
+      value: statValue(profile.diagnostics.length)
+    },
+    { label: "Fmts", value: statValue(profile.exportMetadata.formats.length) },
+    { label: "Conn", value: statValue(profile.identity.connections) },
+    { label: "Foll", value: statValue(profile.identity.followers) }
+  ];
+}
+
+function profileCompletenessNotes(profile: Profile): string[] {
+  const notes: Array<{ priority: number; text: string }> = [];
+  const coverageSections = new Set<string>();
+  const coverageStates = new Set<string>();
+  for (const diagnostic of profile.diagnostics) {
+    const match = /^coverage\.([^.]+)\.([^.]+)$/.exec(diagnostic.code);
+    if (match?.[1] && match[2]) {
+      coverageSections.add(match[1]);
+      coverageStates.add(`${match[1]}:${match[2]}`);
+    }
+    const note = coverageDiagnosticNote(diagnostic.code, profile);
+    if (note) notes.push(note);
+  }
+  if (
+    !coverageSections.has("skills") &&
+    !sectionCoverageResolved(profile, "skills") &&
+    hasDiagnosticCode(profile, ["linkedin-voyager.skills.recovered"])
+  ) {
+    notes.push({ priority: 50, text: "skills recovered" });
+  }
+  if (
+    !coverageSections.has("skills") &&
+    !sectionCoverageResolved(profile, "skills") &&
+    hasDiagnosticCode(profile, ["linkedin-voyager.skills.partial"])
+  ) {
+    notes.push({ priority: 10, text: "skills partial" });
+  }
+  if (
+    !coverageSections.has("skills") &&
+    !sectionCoverageResolved(profile, "skills") &&
+    hasDiagnosticCode(profile, ["linkedin-voyager.skills.possibly-capped"])
+  ) {
+    notes.push({ priority: 10, text: "skills may be capped" });
+  }
+  if (
+    profileCoverageCount(profile, "courses") > 0 &&
+    !coverageStates.has("courses:deduplicated") &&
+    hasDiagnosticCode(profile, ["linkedin-voyager.courses.deduplicated"])
+  ) {
+    notes.push({ priority: 30, text: "courses deduped" });
+  }
+  const higherPrioritySections = new Set(
+    notes.flatMap((note) => {
+      const match = /^(\S+)\s+(?:partial|(?:may be )?capped|unavailable|deduped)$/.exec(note.text);
+      return match?.[1] ? [match[1]] : [];
+    })
+  );
+  const seen = new Set<string>();
+  return notes
+    .sort((left, right) => left.priority - right.priority)
+    .flatMap((note) => {
+      const recoveredMatch = /^(\S+)\s+recovered$/.exec(note.text);
+      if (recoveredMatch?.[1] && higherPrioritySections.has(recoveredMatch[1])) return [];
+      if (seen.has(note.text)) return [];
+      seen.add(note.text);
+      return [note.text];
+    })
+    .slice(0, 5);
+}
+
+function coverageDiagnosticNote(
+  code: string,
+  profile: Profile
+): { priority: number; text: string } | undefined {
+  const match = /^coverage\.([^.]+)\.([^.]+)$/.exec(code);
+  if (!match) {
+    if (code === "coverage.pagination.exhausted") {
+      return { priority: 60, text: "pagination exhausted" };
+    }
+    if (code === "coverage.budget.exhausted") return { priority: 20, text: "recovery budget hit" };
+    return undefined;
+  }
+  const rawSection = match[1] ?? "";
+  const section = compactSectionLabel(rawSection);
+  const state = match[2];
+  if (!section) return undefined;
+  if (state === "complete") return undefined;
+  if (
+    (state === "partial" || state === "capped" || state === "recovered") &&
+    sectionCoverageResolved(profile, rawSection)
+  ) {
+    return undefined;
+  }
+  if (state === "unavailable" && profileCoverageCount(profile, rawSection) > 0) return undefined;
+  if (state === "partial")
+    return { priority: priorityForSectionState(rawSection, state), text: `${section} partial` };
+  if (state === "capped")
+    return {
+      priority: priorityForSectionState(rawSection, state),
+      text: `${section} may be capped`
+    };
+  if (state === "unavailable") {
+    return { priority: priorityForSectionState(rawSection, state), text: `${section} unavailable` };
+  }
+  if (state === "deduplicated" && profileCoverageCount(profile, rawSection) > 0) {
+    return { priority: 30, text: `${section} deduped` };
+  }
+  if (state === "recovered") return { priority: 50, text: `${section} recovered` };
+  return undefined;
+}
+
+function priorityForSectionState(section: string, state: string): number {
+  if ((section === "skills" || section === "courses") && /partial|capped/.test(state)) return 10;
+  if (state === "partial" || state === "capped") return 25;
+  if (state === "unavailable") return 70;
+  return 50;
+}
+
+const COVERAGE_KNOWN_PAGE_CAPS: Record<string, number> = {
+  courses: 20,
+  featured: 20,
+  projects: 20,
+  skills: 20
+};
+
+function sectionHasActiveCoverageWarning(profile: Profile, section: string): boolean {
+  if (sectionCoverageResolved(profile, section)) return false;
+  return hasDiagnosticCode(profile, [
+    `coverage.${section}.partial`,
+    `coverage.${section}.capped`,
+    `linkedin-voyager.${section}.partial`,
+    `linkedin-voyager.${section}.possibly-capped`
+  ]);
+}
+
+function sectionCoverageResolved(profile: Profile, section: string): boolean {
+  if (hasDiagnosticCode(profile, [`coverage.${section}.complete`])) return true;
+  const hasRecovered = hasDiagnosticCode(profile, [
+    `coverage.${section}.recovered`,
+    `linkedin-voyager.${section}.recovered`
+  ]);
+  if (!hasRecovered) return false;
+  const knownCap = COVERAGE_KNOWN_PAGE_CAPS[section];
+  return !knownCap || profileCoverageCount(profile, section) > knownCap;
+}
+
+function profileCoverageCount(profile: Profile, section: string): number {
+  if (section === "licensesCertifications") return profile.licensesCertifications.length;
+  if (section === "honorsAwards") return profile.honorsAwards.length;
+  if (section === "testScores") return profile.testScores.length;
+  if (section === "links") return profile.identity.links.length;
+  if (section === "imagery") {
+    return (
+      Number(Boolean(profile.identity.imagery?.profileImageUrl)) +
+      Number(Boolean(profile.identity.imagery?.backgroundImageUrl))
+    );
+  }
+  if (section === "connections") return profile.identity.connections ? 1 : 0;
+  if (section === "followers") return profile.identity.followers ? 1 : 0;
+  const value = profile[section as keyof Profile];
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function compactSectionLabel(section: string): string {
+  const labels: Record<string, string> = {
+    courses: "courses",
+    featured: "featured",
+    honorsAwards: "honors",
+    licensesCertifications: "certs",
+    projects: "projects",
+    recommendations: "recs",
+    skills: "skills",
+    volunteering: "volunteering",
+    work: "work"
+  };
+  return labels[section] ?? section.replace(/([A-Z])/g, " $1").toLowerCase();
+}
+
+function hasDiagnosticCode(profile: Profile, codes: string[]): boolean {
+  return profile.diagnostics.some((diagnostic) => codes.includes(diagnostic.code));
+}
+
+function statValue(value: number | string | undefined): string {
+  if (typeof value === "number") return String(value);
+  return value?.trim() || "0";
 }
 
 function actionMeta(mode: ProfileSettings["deliveryMode"]) {
@@ -391,6 +674,13 @@ function statusMeta(state: "ready" | "unavailable" | "needs-action" | undefined)
       label: "Not LinkedIn",
       className: "border-[#efc0bb] bg-[#fff1ef] text-[#8a332b]",
       icon: <XCircle size={13} />
+    };
+  }
+  if (state === undefined) {
+    return {
+      label: "Connecting",
+      className: "border-[#a8c6e8] bg-[#edf6ff] text-[#17466f]",
+      icon: <RefreshCcw size={13} className="animate-spin" />
     };
   }
   return {

@@ -6,6 +6,7 @@ import {
   profileSchema
 } from "./schema";
 import { applyProfileSettings, normalizeSettings, type SettingsInput } from "./settings";
+import { cleanReadableText } from "./text";
 import { z } from "zod";
 
 export type ReadinessState = "ready" | "unavailable" | "needs-action";
@@ -68,17 +69,9 @@ function capturedAt(options?: ExtractionOptions): string {
   return options?.now ?? new Date().toISOString();
 }
 
-function cleanText(value: string): string | undefined {
-  const cleaned = value
-    .replace(/\s+/g, " ")
-    .replace(/([a-z0-9][.!?])(?=[A-Z][a-z]+(?:\s|$))/g, "$1 ")
-    .trim();
-  return cleaned || undefined;
-}
-
 function text(root: ParentNode, selector: string): string | undefined {
   const value = root.querySelector(selector)?.textContent;
-  return value ? cleanText(value) : undefined;
+  return value ? cleanReadableText(value) : undefined;
 }
 
 function href(root: ParentNode, selector: string): string | undefined {
@@ -93,7 +86,7 @@ function fieldUrl(root: ParentNode, field: string): string | undefined {
   if (element instanceof HTMLImageElement) return element.src || undefined;
   const dataUrl = element.dataset.url;
   if (dataUrl) return dataUrl;
-  const value = element.textContent ? cleanText(element.textContent) : undefined;
+  const value = element.textContent ? cleanReadableText(element.textContent) : undefined;
   if (!value) return undefined;
   try {
     return new URL(value).toString();
@@ -104,7 +97,7 @@ function fieldUrl(root: ParentNode, field: string): string | undefined {
 
 function fieldTextList(root: ParentNode, field: string): string[] {
   return Array.from(root.querySelectorAll<HTMLElement>(`[data-field="${field}"]`))
-    .map((item) => (item.textContent ? cleanText(item.textContent) : undefined))
+    .map((item) => (item.textContent ? cleanReadableText(item.textContent) : undefined))
     .filter((value): value is string => Boolean(value));
 }
 
@@ -423,7 +416,9 @@ export function extractProfileFromDocument(
       description: text(item, '[data-field="description"]'),
       status: text(item, '[data-field="status"]'),
       inventors: Array.from(item.querySelectorAll<HTMLElement>('[data-field="inventor"]'))
-        .map((inventor) => (inventor.textContent ? cleanText(inventor.textContent) : undefined))
+        .map((inventor) =>
+          inventor.textContent ? cleanReadableText(inventor.textContent) : undefined
+        )
         .filter((value): value is string => Boolean(value)),
       ...itemSource("patents", options)
     })),
@@ -441,7 +436,7 @@ export function extractProfileFromDocument(
     recommendations: readStructuredItems(document, "recommendations", (item) => ({
       name: text(item, '[data-field="name"]') ?? "Recommendation",
       relationship: text(item, '[data-field="relationship"]'),
-      text: text(item, '[data-field="text"]') ?? cleanText(item.textContent ?? "") ?? "",
+      text: text(item, '[data-field="text"]') ?? cleanReadableText(item.textContent ?? "") ?? "",
       ...itemSource("recommendations", options)
     })),
     featured: readStructuredItems(document, "featured", (item) => ({
@@ -493,13 +488,14 @@ function readTextItems(document: Document, section: string): string[] {
   return Array.from(
     document.querySelectorAll<HTMLElement>(`[data-lpe-section="${section}"] [data-lpe-item]`)
   )
-    .map((item) => (item.textContent ? cleanText(item.textContent) : undefined))
+    .map((item) => (item.textContent ? cleanReadableText(item.textContent) : undefined))
     .filter((value): value is string => Boolean(value));
 }
 
 function readInterestItems(document: Document, options?: ExtractionOptions): Profile["interests"] {
   return readStructuredItems(document, "interests", (item) => ({
-    name: text(item, '[data-field="name"]') ?? cleanText(item.textContent ?? "") ?? "Interest",
+    name:
+      text(item, '[data-field="name"]') ?? cleanReadableText(item.textContent ?? "") ?? "Interest",
     url: href(item, '[data-field="url"], a[href]'),
     ...itemSource("interests", options)
   }));

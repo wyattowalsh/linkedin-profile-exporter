@@ -28,9 +28,21 @@ auto-download behavior, diagnostics, and explicit full-field export.
 #### Scenario: Include all fields export is explicit
 
 - **WHEN** the user enables the Include all fields setting
-- **THEN** exports include field provenance, confidence, diagnostics, and verbose
-  Voyager inventory diagnostics that are omitted by default without persisting raw
-  LinkedIn payloads.
+- **THEN** exports include field provenance, confidence, and normal diagnostics that are
+  omitted by default without persisting raw LinkedIn payloads.
+- **AND** Markdown exports include aggregate Coverage Diagnostics only when those
+  troubleshooting fields are retained.
+
+#### Scenario: Verbose diagnostics is independent
+
+- **WHEN** the user enables Include all fields without enabling Verbose diagnostics
+- **THEN** exports retain rich field metadata and normal diagnostics but omit
+  `linkedin-voyager.inventory.*` diagnostics.
+- **AND** enabling Verbose diagnostics separately emits Voyager inventory diagnostics
+  without coupling the setting to Include all fields.
+- **AND** Include all fields visually implies provenance and confidence, while the
+  explicit provenance and confidence toggles remain editable and keep their stored
+  values for when Include all fields is turned off.
 
 ### Requirement: Local delete and review controls
 

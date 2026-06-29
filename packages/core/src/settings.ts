@@ -81,7 +81,7 @@ export function normalizeSettings(input?: SettingsInput): Settings {
 
 export function shouldIncludeVerboseDiagnostics(settingsInput?: SettingsInput): boolean {
   const settings = normalizeSettings(settingsInput);
-  return settings.diagnostics.includeAllFields || settings.diagnostics.verbose;
+  return settings.diagnostics.verbose;
 }
 
 export function applyProfileSettings(
@@ -143,6 +143,10 @@ export function applyProfileSettings(
   }
   if (!settings.diagnostics.includeAllFields && !settings.diagnostics.verbose) {
     filtered.diagnostics = [];
+  } else if (!settings.diagnostics.verbose) {
+    filtered.diagnostics = filtered.diagnostics.filter(
+      (diagnostic) => !diagnostic.code.startsWith("linkedin-voyager.inventory.")
+    );
   }
 
   return profileSchema.parse(filtered);

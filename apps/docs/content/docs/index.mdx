@@ -10,10 +10,10 @@ it through the project-owned canonical schema, and exports local files for revie
 canonical schema keeps LinkedIn-specific sections such as courses, featured items, organizations,
 interests, test scores, and patents when the page provides them.
 
-The extension starts from same-page Voyager data when it is available, falls back to embedded page
-state, and finally falls back to deterministic DOM extraction. Each path produces the same
-`linkedin-profile-exporter.profile.v1` object so downstream exports do not need source-specific
-branches.
+The extension starts from same-page Voyager data when it is available, tries bounded same-profile
+detail recovery for capped sections, falls back to embedded page state, and finally falls back to
+deterministic DOM extraction. Each path produces the same `linkedin-profile-exporter.profile.v1`
+object so downstream exports do not need source-specific branches.
 
 The default product does not upload extracted data, send analytics, require LinkedIn credentials, or
 use a remote service. Clipboard delivery is available for text formats when users prefer copying
@@ -37,4 +37,5 @@ courses, recommendations, featured items, organizations, interests, metadata, di
 export metadata.
 
 Clean exports are the default. Enable **Include all fields** only when you need provenance,
-confidence, and verbose diagnostics for extraction assurance.
+confidence, and normal diagnostics for extraction assurance. Enable **Verbose diagnostics** only
+when you need Voyager inventory detail.
