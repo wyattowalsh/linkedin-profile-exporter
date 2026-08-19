@@ -316,7 +316,7 @@ describe("extraction", () => {
       name: "Privacy Engineering Certificate",
       issuerUrl: "https://www.linkedin.com/company/example-standards-institute/",
       issuerLogoUrl: "https://static.example.test/company/example-standards.png",
-      date: "2024 - Present"
+      date: "2024"
     });
     expect(profile.projects[0]).toMatchObject({
       name: "Local Export Workbench",

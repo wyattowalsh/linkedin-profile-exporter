@@ -1,4 +1,13 @@
 import {
+  careerBreakFromEntity,
+  certificationDates,
+  contactFromEntity,
+  interestKindFromUrl,
+  recommendationDirection,
+  recommendationDisplayName,
+  stringListFromKeys
+} from "./profile-document-fields";
+import {
   SCHEMA_VERSION,
   type Diagnostic,
   type Profile,
@@ -275,18 +284,23 @@ export function extractProfileFromVoyagerPayload(
     .filter((recommendation) => recommendationText(recommendation))
     .map((recommendation) => {
       const db = dbForEntity(dbs, recommendation) ?? primaryDb;
-      const inlineRecommender = objectRecord(recommendation.recommender);
       const recommender =
-        inlineRecommender ??
-        objectRecord(db.getElementByUrn(stringValue(recommendation["*recommender"]))) ??
-        {};
+        objectRecord(recommendation.recommender) ??
+        objectRecord(db.getElementByUrn(stringValue(recommendation["*recommender"])));
+      const recommendee =
+        objectRecord(recommendation.recommendee) ??
+        objectRecord(db.getElementByUrn(stringValue(recommendation["*recommendee"])));
+      const entity = {
+        ...recommendation,
+        ...(recommender ? { recommender } : {}),
+        ...(recommendee ? { recommendee } : {})
+      };
+      const direction = recommendationDirection(entity);
       return {
-        name:
-          [stringValue(recommender.firstName), stringValue(recommender.lastName)]
-            .filter(isPresent)
-            .join(" ") || "LinkedIn recommendation",
+        name: recommendationDisplayName(entity, direction),
         relationship: stringValue(recommendation.recommendationContext),
         text: recommendationText(recommendation)!,
+        ...(direction ? { direction } : {}),
         provenance: provenance("recommendations"),
         confidence: 0.85
       };
@@ -364,9 +378,12 @@ export function extractProfileFromVoyagerPayload(
           stringValue(interest.title) ??
           stringValue(interest.interestName);
         if (!name) return null;
+        const url = urlValue(interest.url) ?? urlValue(interest.navigationUrl);
+        const kind = interestKindFromUrl(url);
         return {
           name,
-          url: urlValue(interest.url) ?? urlValue(interest.navigationUrl),
+          url,
+          ...(kind ? { kind } : {}),
           provenance: provenance("interests"),
           confidence: 0.8
         };
@@ -394,6 +411,13 @@ export function extractProfileFromVoyagerPayload(
       `${patent.title}|${patent.patentNumber ?? ""}|${patent.applicationNumber ?? ""}`.toLowerCase()
   );
 
+  const contactInfo =
+    objectRecord(profileEntity.contactInfo) ??
+    objectRecord(primaryDb.getElementByUrn(stringValue(profileEntity["*contactInfo"])));
+  const contact = contactInfo ? contactFromEntity(contactInfo) : undefined;
+  const openTo = stringListFromKeys(profileEntity, ["openTo", "openToStatus"]);
+  const causes = stringListFromKeys(profileEntity, ["causes", "supportedCauses"]);
+
   const profile = profileSchema.parse({
     schemaVersion: SCHEMA_VERSION,
     identity: {
@@ -412,6 +436,9 @@ export function extractProfileFromVoyagerPayload(
       about:
         sentenceTextValue(profileEntity.summary) ??
         sentenceTextValue(profileEntity.multiLocaleSummary),
+      ...(contact ? { contact } : {}),
+      ...(openTo ? { openTo } : {}),
+      ...(causes ? { causes } : {}),
       links: linksFromProfileEntity(profileEntity),
       imagery: identityImagery(profileEntity, profileMini),
       provenance: provenance("identity"),
@@ -424,12 +451,16 @@ export function extractProfileFromVoyagerPayload(
       (certification) => {
         const db = dbForEntity(dbs, certification) ?? primaryDb;
         const issuerEntity = companyEntityForRecord(certification, db);
+        const dates = certificationDates(
+          dateParts(certification).start,
+          dateParts(certification).end
+        );
         return {
           name: stringValue(certification.name) ?? "Certification",
           issuer: stringValue(certification.authority) ?? stringValue(certification.companyName),
           issuerUrl: linkedUrl(issuerEntity, "company"),
           issuerLogoUrl: imageUrlFromEntity(issuerEntity),
-          date: dateRange(certification),
+          ...dates,
           credentialId:
             stringValue(certification.licenseNumber) ??
             stringValue(certification.credentialId) ??
@@ -897,8 +928,10 @@ function workFromPositionGroup(
     provenance,
     confidence: 0.92
   };
-
-  return work;
+  const careerBreak =
+    careerBreakFromEntity(group) ??
+    (firstPosition ? careerBreakFromEntity(firstPosition) : undefined);
+  return careerBreak ? { ...work, careerBreak } : work;
 }
 
 function workFromPosition(
@@ -907,6 +940,7 @@ function workFromPosition(
   provenance: Provenance
 ): WorkExperience {
   const companyEntity = companyEntityForPosition(position, db);
+  const careerBreak = careerBreakFromEntity(position);
   return {
     title: stringValue(position.title) ?? stringValue(position.multiLocaleTitle) ?? "Role",
     employmentType: employmentTypeForPosition(position, db),
@@ -914,6 +948,7 @@ function workFromPosition(
     location: stringValue(position.locationName) ?? stringValue(position.location),
     dates: dateRange(position),
     description: stringValue(position.description) ?? stringValue(position.multiLocaleDescription),
+    ...(careerBreak ? { careerBreak } : {}),
     companyUrl: linkedUrl(companyEntity, "company"),
     companyLogoUrl: imageUrlFromEntity(companyEntity),
     companyIndustry: industryNameForEntity(companyEntity, db),
@@ -1465,18 +1500,34 @@ function entityFieldInventory(dbs: VoyagerDb[]): Record<string, string[]> {
   );
 }
 
-function dateRange(entity: JsonRecord): string | undefined {
+function dateParts(entity: JsonRecord): { start?: string; end?: string } {
   const range = objectRecord(entity.timePeriod) ?? objectRecord(entity.dateRange);
   const start =
     dateValue(range?.startDate) ??
     dateValue(range?.start) ??
     dateValue(entity.startDate) ??
-    dateValue(entity.startDateOn);
+    dateValue(entity.startDateOn) ??
+    dateValue(entity.issuedOn) ??
+    stringValue(entity.startDate) ??
+    stringValue(entity.startDateOn);
   const end =
     dateValue(range?.endDate) ??
     dateValue(range?.end) ??
     dateValue(entity.endDate) ??
-    dateValue(entity.endDateOn);
+    dateValue(entity.endDateOn) ??
+    dateValue(entity.expirationDate) ??
+    dateValue(entity.expireOn) ??
+    stringValue(entity.endDate) ??
+    stringValue(entity.expirationDate) ??
+    stringValue(entity.expireOn);
+  return {
+    ...(start ? { start } : {}),
+    ...(end ? { end } : {})
+  };
+}
+
+function dateRange(entity: JsonRecord): string | undefined {
+  const { start, end } = dateParts(entity);
   if (start && end) return `${start} - ${end}`;
   if (start) return `${start} - Present`;
   return end;

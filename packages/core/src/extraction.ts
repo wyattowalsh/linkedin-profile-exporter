@@ -1,4 +1,10 @@
 import {
+  contactFromEntity,
+  interestKindFromUrl,
+  parseInterestKindField,
+  parseRecommendationDirectionField
+} from "./profile-document-fields";
+import {
   SCHEMA_VERSION,
   type Diagnostic,
   type Profile,
@@ -269,6 +275,16 @@ export function extractProfileFromDocument(
   )?.content;
   const about = text(document, '[data-lpe-section="identity"] [data-field="about"]');
   const metadata = profileMetadata(document);
+  const identityRoot = document.querySelector('[data-lpe-section="identity"]') ?? document;
+  const contact = contactFromEntity({
+    email: text(identityRoot, '[data-field="email"]'),
+    phone: text(identityRoot, '[data-field="phone"]'),
+    im: text(identityRoot, '[data-field="im"]'),
+    birthday: text(identityRoot, '[data-field="birthday"]'),
+    address: text(identityRoot, '[data-field="address"]')
+  });
+  const openTo = fieldTextList(identityRoot, "openTo");
+  const causes = fieldTextList(identityRoot, "causes");
 
   const profile: Profile = profileSchema.parse({
     schemaVersion: SCHEMA_VERSION,
@@ -282,6 +298,9 @@ export function extractProfileFromDocument(
       location: text(document, PROFILE_LOCATION_SELECTOR),
       profileUrl,
       about,
+      ...(contact ? { contact } : {}),
+      ...(openTo.length ? { openTo } : {}),
+      ...(causes.length ? { causes } : {}),
       links: Array.from(
         document.querySelectorAll<HTMLAnchorElement>('[data-lpe-section="identity"] a[href]')
       ).map((anchor) => ({
@@ -306,26 +325,30 @@ export function extractProfileFromDocument(
       provenance: source("identity", '[data-lpe-section="identity"]', options),
       confidence: 0.92
     },
-    work: readStructuredItems(document, "work", (item) => ({
-      title: text(item, '[data-field="title"]') ?? "Role",
-      company: text(item, '[data-field="company"]'),
-      employmentType: text(item, '[data-field="employmentType"]'),
-      location: text(item, '[data-field="location"]'),
-      dates: text(item, '[data-field="dates"]'),
-      description: text(item, '[data-field="description"]'),
-      companyUrl: fieldUrl(item, "companyUrl"),
-      companyLogoUrl: fieldUrl(item, "companyLogoUrl"),
-      companyIndustry: text(item, '[data-field="companyIndustry"]'),
-      roles: Array.from(item.querySelectorAll<HTMLElement>("[data-lpe-role]")).map((role) => ({
-        title: text(role, '[data-field="title"]') ?? "Role",
-        employmentType: text(role, '[data-field="employmentType"]'),
-        location: text(role, '[data-field="location"]'),
-        dates: text(role, '[data-field="dates"]'),
-        description: text(role, '[data-field="description"]'),
-        ...itemSource("work.role", options)
-      })),
-      ...itemSource("work", options)
-    })),
+    work: readStructuredItems(document, "work", (item) => {
+      const careerBreak = text(item, '[data-field="careerBreak"]');
+      return {
+        title: text(item, '[data-field="title"]') ?? "Role",
+        company: text(item, '[data-field="company"]'),
+        employmentType: text(item, '[data-field="employmentType"]'),
+        location: text(item, '[data-field="location"]'),
+        dates: text(item, '[data-field="dates"]'),
+        description: text(item, '[data-field="description"]'),
+        ...(careerBreak ? { careerBreak } : {}),
+        companyUrl: fieldUrl(item, "companyUrl"),
+        companyLogoUrl: fieldUrl(item, "companyLogoUrl"),
+        companyIndustry: text(item, '[data-field="companyIndustry"]'),
+        roles: Array.from(item.querySelectorAll<HTMLElement>("[data-lpe-role]")).map((role) => ({
+          title: text(role, '[data-field="title"]') ?? "Role",
+          employmentType: text(role, '[data-field="employmentType"]'),
+          location: text(role, '[data-field="location"]'),
+          dates: text(role, '[data-field="dates"]'),
+          description: text(role, '[data-field="description"]'),
+          ...itemSource("work.role", options)
+        })),
+        ...itemSource("work", options)
+      };
+    }),
     education: readStructuredItems(document, "education", (item) => ({
       school: text(item, '[data-field="school"]') ?? "School",
       degree: text(item, '[data-field="degree"]'),
@@ -353,16 +376,20 @@ export function extractProfileFromDocument(
         confidence: 0.75
       }))
     ],
-    licensesCertifications: readStructuredItems(document, "licenses-certifications", (item) => ({
-      name: text(item, '[data-field="name"]') ?? "Certification",
-      issuer: text(item, '[data-field="issuer"]'),
-      issuerUrl: fieldUrl(item, "issuerUrl"),
-      issuerLogoUrl: fieldUrl(item, "issuerLogoUrl"),
-      date: text(item, '[data-field="date"]'),
-      credentialId: text(item, '[data-field="credentialId"]'),
-      credentialUrl: href(item, '[data-field="credentialUrl"], a[href]'),
-      ...itemSource("licenses-certifications", options)
-    })),
+    licensesCertifications: readStructuredItems(document, "licenses-certifications", (item) => {
+      const expirationDate = text(item, '[data-field="expirationDate"]');
+      return {
+        name: text(item, '[data-field="name"]') ?? "Certification",
+        issuer: text(item, '[data-field="issuer"]'),
+        issuerUrl: fieldUrl(item, "issuerUrl"),
+        issuerLogoUrl: fieldUrl(item, "issuerLogoUrl"),
+        date: text(item, '[data-field="date"]'),
+        ...(expirationDate ? { expirationDate } : {}),
+        credentialId: text(item, '[data-field="credentialId"]'),
+        credentialUrl: href(item, '[data-field="credentialUrl"], a[href]'),
+        ...itemSource("licenses-certifications", options)
+      };
+    }),
     projects: readStructuredItems(document, "projects", (item) => ({
       name: text(item, '[data-field="name"]') ?? "Project",
       description: text(item, '[data-field="description"]'),
@@ -433,12 +460,16 @@ export function extractProfileFromDocument(
       provider: text(item, '[data-field="provider"]'),
       ...itemSource("courses", options)
     })),
-    recommendations: readStructuredItems(document, "recommendations", (item) => ({
-      name: text(item, '[data-field="name"]') ?? "Recommendation",
-      relationship: text(item, '[data-field="relationship"]'),
-      text: text(item, '[data-field="text"]') ?? cleanReadableText(item.textContent ?? "") ?? "",
-      ...itemSource("recommendations", options)
-    })),
+    recommendations: readStructuredItems(document, "recommendations", (item) => {
+      const direction = parseRecommendationDirectionField(text(item, '[data-field="direction"]'));
+      return {
+        name: text(item, '[data-field="name"]') ?? "Recommendation",
+        relationship: text(item, '[data-field="relationship"]'),
+        text: text(item, '[data-field="text"]') ?? cleanReadableText(item.textContent ?? "") ?? "",
+        ...(direction ? { direction } : {}),
+        ...itemSource("recommendations", options)
+      };
+    }),
     featured: readStructuredItems(document, "featured", (item) => ({
       title: text(item, '[data-field="title"]') ?? "Featured item",
       type: text(item, '[data-field="type"]'),
@@ -493,12 +524,20 @@ function readTextItems(document: Document, section: string): string[] {
 }
 
 function readInterestItems(document: Document, options?: ExtractionOptions): Profile["interests"] {
-  return readStructuredItems(document, "interests", (item) => ({
-    name:
-      text(item, '[data-field="name"]') ?? cleanReadableText(item.textContent ?? "") ?? "Interest",
-    url: href(item, '[data-field="url"], a[href]'),
-    ...itemSource("interests", options)
-  }));
+  return readStructuredItems(document, "interests", (item) => {
+    const url = href(item, '[data-field="url"], a[href]');
+    const kind =
+      parseInterestKindField(text(item, '[data-field="kind"]')) ?? interestKindFromUrl(url);
+    return {
+      name:
+        text(item, '[data-field="name"]') ??
+        cleanReadableText(item.textContent ?? "") ??
+        "Interest",
+      url,
+      ...(kind ? { kind } : {}),
+      ...itemSource("interests", options)
+    };
+  });
 }
 
 const clientStateSchema = z

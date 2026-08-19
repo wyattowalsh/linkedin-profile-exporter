@@ -56,6 +56,17 @@ export const identitySchema = z.object({
   memberUrn: z.string().optional(),
   profileUrl: z.string().url(),
   about: z.string().optional(),
+  contact: z
+    .object({
+      email: z.string().optional(),
+      phone: z.string().optional(),
+      im: z.string().optional(),
+      birthday: z.string().optional(),
+      address: z.string().optional()
+    })
+    .optional(),
+  openTo: z.array(z.string().min(1)).optional(),
+  causes: z.array(z.string().min(1)).optional(),
   links: z.array(linkSchema).default([]),
   imagery: imagerySchema.optional(),
   ...provenanceFields
@@ -77,6 +88,7 @@ export const workExperienceSchema = z.object({
   location: z.string().optional(),
   dates: z.string().optional(),
   description: z.string().optional(),
+  careerBreak: z.string().optional(),
   companyUrl: z.string().url().optional(),
   companyLogoUrl: z.string().url().optional(),
   companyIndustry: z.string().optional(),
@@ -108,6 +120,7 @@ export const certificationSchema = z.object({
   issuerUrl: z.string().url().optional(),
   issuerLogoUrl: z.string().url().optional(),
   date: z.string().optional(),
+  expirationDate: z.string().optional(),
   credentialId: z.string().optional(),
   credentialUrl: z.string().url().optional(),
   ...provenanceFields
@@ -191,6 +204,7 @@ export const recommendationSchema = z.object({
   name: z.string(),
   relationship: z.string().optional(),
   text: z.string(),
+  direction: z.enum(["received", "given"]).optional(),
   ...provenanceFields
 });
 
@@ -216,6 +230,7 @@ export const organizationSchema = z.object({
 export const interestSchema = z.object({
   name: z.string(),
   url: z.string().url().optional(),
+  kind: z.enum(["topVoice", "company", "group", "newsletter", "school"]).optional(),
   ...provenanceFields
 });
 

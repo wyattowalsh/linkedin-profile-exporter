@@ -35,8 +35,11 @@ delivery setting. Review-before-export is the default workflow.
 ## Slowness and errors
 
 Voyager API attempts are bounded so one slow LinkedIn internal endpoint does not block the export.
-When Voyager data is unavailable, the extension records a warning diagnostic and uses the page
-fallback instead of failing the whole flow.
+Those requests stay on `www.linkedin.com` and use the signed-in tab’s session. Country-host profile
+URLs such as `de.linkedin.com` or bare `linkedin.com` can report ready through URL detection, but
+content-script `matches` and `host_permissions` stay `https://www.linkedin.com/in/*`. When Voyager
+data is unavailable, the extension records a warning diagnostic and uses the page fallback instead
+of failing the whole flow.
 
 Some sections, especially skills and courses, may advertise more items than the first profile page
 renders. The extension tries same-profile supplements, detail pages, temporary same-profile detail
