@@ -30,6 +30,10 @@ LinkedIn hosts is deferred; URL readiness may recognize those hosts.
 4. Contact overlay scraping waits for a deterministic fixture; the schema and
    structured-key mapper are in place first.
 5. Host permissions stay `www.linkedin.com/in/*` until a store-review change.
+6. Certification dates filter `/present/i` and omit expiration when start and end match.
+   End-only values stay on `date`. Work `dateRange` may still synthesize `Present`.
+7. Contact IM prefers `imAccountName` / `username`, then a non-URN `id`. Birthdays keep
+   month-day when year is absent. Identity causes also read `volunteerCauses`.
 
 ## Risks / Trade-offs
 

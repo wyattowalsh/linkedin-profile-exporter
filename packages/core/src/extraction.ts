@@ -1,4 +1,5 @@
 import {
+  certificationDates,
   contactFromEntity,
   interestKindFromUrl,
   parseInterestKindField,
@@ -377,14 +378,16 @@ export function extractProfileFromDocument(
       }))
     ],
     licensesCertifications: readStructuredItems(document, "licenses-certifications", (item) => {
-      const expirationDate = text(item, '[data-field="expirationDate"]');
+      const dates = certificationDates(
+        text(item, '[data-field="date"]'),
+        text(item, '[data-field="expirationDate"]')
+      );
       return {
         name: text(item, '[data-field="name"]') ?? "Certification",
         issuer: text(item, '[data-field="issuer"]'),
         issuerUrl: fieldUrl(item, "issuerUrl"),
         issuerLogoUrl: fieldUrl(item, "issuerLogoUrl"),
-        date: text(item, '[data-field="date"]'),
-        ...(expirationDate ? { expirationDate } : {}),
+        ...dates,
         credentialId: text(item, '[data-field="credentialId"]'),
         credentialUrl: href(item, '[data-field="credentialUrl"], a[href]'),
         ...itemSource("licenses-certifications", options)

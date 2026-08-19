@@ -5,7 +5,7 @@
 The canonical identity object MAY include a `contact` object with optional `email`,
 `phone`, `im`, `birthday`, and `address` strings when those values are accessible from
 the signed-in profile overlay or Voyager contact entities. Absent values SHALL be
-omitted.
+omitted. Profile-entity location `address` SHALL NOT be copied into `identity.contact`.
 
 #### Scenario: Missing contact stays omitted
 
@@ -44,7 +44,8 @@ volunteering item `cause` values.
 Each recommendation MAY include `direction` of `received` or `given`. Extraction SHALL
 set `given` when the entity is a recommendee-side item or has a given recommendation
 type, and `received` when it is a recommender-side item or has a received recommendation
-type.
+type. Direction SHALL be omitted when both sides are present, neither side is present,
+and no given/received type is available.
 
 #### Scenario: Given and received recommendations coexist
 
@@ -56,7 +57,8 @@ type.
 ### Requirement: Interest kind
 
 Each interest MAY include `kind` of `topVoice`, `company`, `group`, `newsletter`, or
-`school` when the interest URL path identifies that tab.
+`school` when the interest URL path identifies that tab on a LinkedIn host, including
+`/newsletter/` and `/newsletters/`. Non-LinkedIn hosts SHALL omit `kind`.
 
 #### Scenario: Company interest URL
 
@@ -66,7 +68,9 @@ Each interest MAY include `kind` of `topVoice`, `company`, `group`, `newsletter`
 ### Requirement: Career-break type
 
 A work item MAY include `careerBreak` as a short type label when Voyager or the details
-page marks the role as a career break.
+page marks the role as a career break via structured keys (`careerBreak`,
+`careerBreakType`, or `$type` / `$recipeType` / `$recipeTypes` matching career-break).
+Ordinary roles SHALL omit `careerBreak`. Description text SHALL NOT mark a career break.
 
 #### Scenario: Ordinary roles omit careerBreak
 
@@ -77,6 +81,8 @@ page marks the role as a career break.
 
 A certification MAY include `expirationDate` as a display date string when Voyager or
 the details page exposes an end or expiration date distinct from the issue date.
+`Present` SHALL NOT appear on certification `date` or `expirationDate`. End-only values
+remain on `date`. Same start and end strings omit `expirationDate`.
 
 #### Scenario: Start-only certifications omit expirationDate
 

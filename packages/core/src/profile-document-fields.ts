@@ -9,6 +9,10 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function isLinkedInUrn(value: string): boolean {
+  return /^urn:/i.test(value.trim());
+}
+
 function cleaned(value: unknown): string | undefined {
   if (typeof value === "string") return cleanReadableText(value);
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
@@ -20,6 +24,33 @@ function cleaned(value: unknown): string | undefined {
     cleaned(record.name) ??
     cleaned(record.number)
   );
+}
+
+function imText(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const text = cleanReadableText(value);
+    return text && !isLinkedInUrn(text) ? text : undefined;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const named =
+    cleaned(record.imAccountName) ?? cleaned(record.username) ?? cleaned(record.handle);
+  if (named) return named;
+  const id = cleaned(record.id);
+  if (id && !isLinkedInUrn(id)) return id;
+  return cleaned(record.text) ?? cleaned(record.name);
+}
+
+function firstIm(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const text = firstIm(item);
+      if (text) return text;
+    }
+    return undefined;
+  }
+  return imText(value);
 }
 
 function firstString(entity: Record<string, unknown>, keys: string[]): string | undefined {
@@ -59,15 +90,32 @@ function personName(value: unknown): string | undefined {
 function formatBirthDate(value: unknown): string | undefined {
   const record = asRecord(value);
   if (!record) return undefined;
-  const year = typeof record.year === "number" ? record.year : undefined;
+  const year  = typeof record.year === "number" ? record.year : undefined;
   const month = typeof record.month === "number" ? record.month : undefined;
-  const day = typeof record.day === "number" ? record.day : undefined;
+  const day   = typeof record.day === "number" ? record.day : undefined;
   if (year && month && day) {
     return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
   if (year && month) return `${year}-${String(month).padStart(2, "0")}`;
+  if (month && day) return `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   if (year) return String(year);
   return undefined;
+}
+
+function usableCertDate(value?: string): string | undefined {
+  const text = value?.trim();
+  if (!text || /present/i.test(text)) return undefined;
+  return text;
+}
+
+function recipeValues(entity: Record<string, unknown>): unknown[] {
+  const values: unknown[] = [];
+  for (const key of ["$recipeTypes", "$recipeType"]) {
+    const raw = entity[key];
+    if (Array.isArray(raw)) values.push(...raw);
+    else if (raw !== undefined) values.push(raw);
+  }
+  return values;
 }
 
 export function interestKindFromUrl(url: string | undefined): InterestKind | undefined {
@@ -120,21 +168,22 @@ export function certificationDates(
   start?: string,
   end?: string
 ): { date?: string; expirationDate?: string } {
-  if (start && end && start !== end) {
-    return { date: start, expirationDate: end };
+  const issue      = usableCertDate(start);
+  const expiration = usableCertDate(end);
+  if (issue && expiration && issue !== expiration) {
+    return { date: issue, expirationDate: expiration };
   }
-  if (start) return { date: start };
-  if (end) return { date: end };
+  if (issue) return { date: issue };
+  if (expiration) return { date: expiration };
   return {};
 }
 
 export function careerBreakFromEntity(entity: Record<string, unknown>): string | undefined {
-  const labeled = firstString(entity, ["careerBreak", "careerBreakType", "careerBreakType"]);
+  const labeled = firstString(entity, ["careerBreak", "careerBreakType"]);
   if (labeled) return labeled;
-  const type = firstString(entity, ["$type", "$type", "type"]);
+  const type = firstString(entity, ["$type", "type", "$recipeType"]);
   if (type && /careerbreak/i.test(type)) return "Career break";
-  const recipes = entity.$recipeTypes ?? entity.$recipeTypes;
-  if (Array.isArray(recipes) && recipes.some((item) => /careerbreak/i.test(String(item)))) {
+  if (recipeValues(entity).some((item) => /careerbreak/i.test(String(item)))) {
     return "Career break";
   }
   return undefined;
@@ -151,7 +200,7 @@ export function contactFromEntity(entity: Record<string, unknown>):
   | undefined {
   const email = firstString(entity, ["email", "emailAddress"]);
   const phone = firstString(entity, ["phone", "phoneNumber", "phoneNumbers"]);
-  const im = firstString(entity, ["im", "ims"]);
+  const im = firstIm(entity.im) ?? firstIm(entity.ims);
   const birthday =
     firstString(entity, ["birthday"]) ?? formatBirthDate(entity.birthDateOn ?? entity.birthday);
   const address = firstString(entity, ["address"]);
@@ -182,14 +231,8 @@ export function stringListFromKeys(
       }
     }
   }
-  const includesOpenTo = keys.some(
-    (key) => key === "openTo" || key === "openToStatus" || key === "openToStatus"
-  );
-  if (
-    includesOpenTo &&
-    (entity.openToWork === true || entity.openToWork === true) &&
-    !seen.has("Open to work")
-  ) {
+  const includesOpenTo = keys.some((key) => key === "openTo" || key === "openToStatus");
+  if (includesOpenTo && entity.openToWork === true && !seen.has("Open to work")) {
     values.unshift("Open to work");
   }
   return values.length ? values : undefined;

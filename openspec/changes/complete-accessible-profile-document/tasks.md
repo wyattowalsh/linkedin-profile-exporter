@@ -16,3 +16,4 @@
 
 - [x] 3.1 Schema and mapper tests for omitted and populated additive fields
 - [x] 3.2 Keep host permissions unchanged; document country-host readiness vs scripting
+- [x] 3.3 Cover host-omit, Present filter, IM/birthday aliases, volunteerCauses, and settings strip

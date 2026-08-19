@@ -9,7 +9,13 @@ import {
   extractProfileFromHtml,
   extractProfileFromVoyagerPayload
 } from "../src";
-import { interestKindFromUrl } from "../src/profile-document-fields";
+import {
+  careerBreakFromEntity,
+  certificationDates,
+  contactFromEntity,
+  interestKindFromUrl,
+  recommendationDirection
+} from "../src/profile-document-fields";
 
 const fixedNow = "2026-05-25T12:00:00.000Z";
 
@@ -42,7 +48,44 @@ describe("profile document field helpers", () => {
       "topVoice"
     );
     expect(interestKindFromUrl("https://example.test/local-first")).toBeUndefined();
+    expect(interestKindFromUrl("https://example.test/company/foo")).toBeUndefined();
     expect(interestKindFromUrl("https://www.linkedin.com/feed/")).toBeUndefined();
+  });
+
+  it("filters Present and same-string certification dates", () => {
+    expect(certificationDates("2024", "2026")).toEqual({ date: "2024", expirationDate: "2026" });
+    expect(certificationDates("2024", "2024")).toEqual({ date: "2024" });
+    expect(certificationDates("2024")).toEqual({ date: "2024" });
+    expect(certificationDates(undefined, "2026")).toEqual({ date: "2026" });
+    expect(certificationDates("2024", "Present")).toEqual({ date: "2024" });
+    expect(certificationDates("Present", "2026")).toEqual({ date: "2026" });
+    expect(certificationDates("Present", "Present")).toEqual({});
+  });
+
+  it("maps IM account names, month-day birthdays, and recipe career breaks", () => {
+    expect(
+      contactFromEntity({
+        ims: [{ provider: "SKYPE", imAccountName: "alex.rivera" }],
+        birthDateOn: { month: 5, day: 25 }
+      })
+    ).toEqual({ im: "alex.rivera", birthday: "05-25" });
+    expect(contactFromEntity({ ims: [{ provider: "SKYPE", id: "alex.skype" }] })).toEqual({
+      im: "alex.skype"
+    });
+    expect(contactFromEntity({ ims: [{ id: "urn:li:member:123" }] })).toBeUndefined();
+    expect(careerBreakFromEntity({ $recipeType: "com.linkedin.voyager.dash.CareerBreak" })).toBe(
+      "Career break"
+    );
+    expect(
+      careerBreakFromEntity({
+        $recipeTypes: ["com.linkedin.voyager.dash.deco.identity.profile.CareerBreakPosition"]
+      })
+    ).toBe("Career break");
+    expect(careerBreakFromEntity({ title: "Director of Engineering" })).toBeUndefined();
+    expect(recommendationDirection({ "*recommender": "urn:li:fs_miniProfile:jordan" })).toBe(
+      "received"
+    );
+    expect(recommendationDirection({})).toBeUndefined();
   });
 });
 
@@ -113,6 +156,12 @@ describe("populated additive profile fields", () => {
         "*recommendee": "urn:li:fs_miniProfile:sam-given",
         recommendationText: "Direction should stay omitted for ambiguous sides.",
         recommendationContext: "Colleague"
+      },
+      {
+        entityUrn: "urn:li:fs_recommendation:(alex-rivera,neither-1)",
+        $type: "com.linkedin.voyager.identity.profile.Recommendation",
+        recommendationText: "Direction should stay omitted when neither side is present.",
+        recommendationContext: "Colleague"
       }
     );
 
@@ -123,11 +172,14 @@ describe("populated additive profile fields", () => {
     const given = profile.recommendations.find((item) => item.direction === "given");
     const received = profile.recommendations.find((item) => item.direction === "received");
     const ambiguous = profile.recommendations.find((item) => item.text.includes("ambiguous sides"));
+    const neither = profile.recommendations.find((item) => item.text.includes("neither side"));
 
     expect(given).toMatchObject({ name: "Sam Given", direction: "given" });
     expect(received).toMatchObject({ name: "Jordan Received", direction: "received" });
     expect(ambiguous).toBeDefined();
     expect(ambiguous).not.toHaveProperty("direction");
+    expect(neither).toBeDefined();
+    expect(neither).not.toHaveProperty("direction");
   });
 
   it("sets company interest kind from the Dash company URL", () => {
@@ -165,6 +217,33 @@ describe("populated additive profile fields", () => {
       expirationDate: "2026"
     });
     expect(withExpiration.licensesCertifications[0]?.date).not.toMatch(/Present|-/);
+
+    const sameYear = cloneClassicPayload();
+    const sameYearCert = sameYear.included.find(
+      (item) => item.$type === "com.linkedin.voyager.dash.identity.profile.Certification"
+    );
+    if (!sameYearCert) throw new Error("Classic fixture is missing a Certification entity.");
+    sameYearCert.endDateOn = { year: 2024 };
+    const sameYearProfile = extractProfileFromVoyagerPayload(sameYear, {
+      now: fixedNow,
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(sameYearProfile.licensesCertifications[0]?.date).toBe("2024");
+    expect(sameYearProfile.licensesCertifications[0]).not.toHaveProperty("expirationDate");
+
+    const presentEnd = cloneClassicPayload();
+    const presentCert = presentEnd.included.find(
+      (item) => item.$type === "com.linkedin.voyager.dash.identity.profile.Certification"
+    );
+    if (!presentCert) throw new Error("Classic fixture is missing a Certification entity.");
+    presentCert.expirationDate = "Present";
+    const presentProfile = extractProfileFromVoyagerPayload(presentEnd, {
+      now: fixedNow,
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(presentProfile.licensesCertifications[0]?.date).toBe("2024");
+    expect(presentProfile.licensesCertifications[0]).not.toHaveProperty("expirationDate");
+    expect(JSON.stringify(presentProfile.licensesCertifications[0])).not.toMatch(/Present/i);
   });
 
   it("omits careerBreak on ordinary work and maps a marked career-break role", () => {
@@ -188,25 +267,59 @@ describe("populated additive profile fields", () => {
       url: "https://www.linkedin.com/in/alex-rivera-fixture/"
     });
     expect(profile.work.some((item) => item.careerBreak === "Parental leave")).toBe(true);
+    expect(
+      profile.work.find((item) => item.title === "Director of Engineering")
+    ).not.toHaveProperty("careerBreak");
+
+    const recipePayload = cloneClassicPayload();
+    recipePayload.included.push({
+      entityUrn: "urn:li:fs_position:(alex-rivera,recipe-break)",
+      $type: "com.linkedin.voyager.identity.profile.Position",
+      title: "Sabbatical",
+      $recipeType: "com.linkedin.voyager.dash.deco.identity.profile.CareerBreakPosition",
+      timePeriod: { startDate: { year: 2019 }, endDate: { year: 2020 } }
+    });
+    const recipeProfile = extractProfileFromVoyagerPayload(recipePayload, {
+      now: fixedNow,
+      url: "https://www.linkedin.com/in/alex-rivera-fixture/"
+    });
+    expect(recipeProfile.work.some((item) => item.careerBreak === "Career break")).toBe(true);
+    expect(
+      recipeProfile.work.find((item) => item.title === "Director of Engineering")
+    ).not.toHaveProperty("careerBreak");
   });
 
   it("maps Voyager contact, openTo, and causes without treating a DOM contact link as contact", () => {
     const payload = cloneClassicPayload();
     const identity = profileEntity(payload);
-    identity.contactInfo = { emailAddress: "alex@example.test" };
-    identity.openTo = ["Hiring"];
-    identity.causes = ["Education"];
+    identity.address = "Should stay in location";
+    identity.contactInfo = {
+      emailAddress: "alex@example.test",
+      address: "123 Overlay St",
+      ims: [{ provider: "SKYPE", imAccountName: "alex.rivera" }],
+      birthDateOn: { month: 5, day: 25 }
+    };
+    identity.openToWork = true;
+    identity.volunteerCauses = ["Climate"];
 
     const voyagerProfile = extractProfileFromVoyagerPayload(payload, {
       now: fixedNow,
       url: "https://www.linkedin.com/in/alex-rivera-fixture/"
     });
-    expect(voyagerProfile.identity.contact).toEqual({ email: "alex@example.test" });
-    expect(voyagerProfile.identity.openTo).toEqual(["Hiring"]);
-    expect(voyagerProfile.identity.causes).toEqual(["Education"]);
+    expect(voyagerProfile.identity.contact).toEqual({
+      email: "alex@example.test",
+      im: "alex.rivera",
+      birthday: "05-25",
+      address: "123 Overlay St"
+    });
+    expect(voyagerProfile.identity.location).not.toBe("123 Overlay St");
+    expect(voyagerProfile.identity.openTo).toEqual(["Open to work"]);
+    expect(voyagerProfile.identity.causes).toEqual(["Climate"]);
+    expect(voyagerProfile.volunteering[0]?.cause).toBe("Education");
 
     const htmlProfile = extractProfileFromHtml(denseProfileHtml, { now: fixedNow });
     expect(htmlProfile.identity).not.toHaveProperty("contact");
+    expect(htmlProfile.volunteering[0]?.cause).toBe("Education");
   });
 
   it("maps structured DOM additive fields", () => {
@@ -232,6 +345,16 @@ describe("populated additive profile fields", () => {
           <h2 data-field="name">Privacy Engineering Certificate</h2>
           <p data-field="date">2024</p>
           <p data-field="expirationDate">2026</p>
+        </article>
+        <article data-lpe-item>
+          <h2 data-field="name">Same-year Certificate</h2>
+          <p data-field="date">2024</p>
+          <p data-field="expirationDate">2024</p>
+        </article>
+        <article data-lpe-item>
+          <h2 data-field="name">Present Certificate</h2>
+          <p data-field="date">2024</p>
+          <p data-field="expirationDate">Present</p>
         </article>
       </section>
       <section data-lpe-section="recommendations">
@@ -259,6 +382,11 @@ describe("populated additive profile fields", () => {
       date: "2024",
       expirationDate: "2026"
     });
+    expect(profile.licensesCertifications[1]?.date).toBe("2024");
+    expect(profile.licensesCertifications[1]).not.toHaveProperty("expirationDate");
+    expect(profile.licensesCertifications[2]?.date).toBe("2024");
+    expect(profile.licensesCertifications[2]).not.toHaveProperty("expirationDate");
+    expect(JSON.stringify(profile.licensesCertifications[2])).not.toMatch(/Present/i);
     expect(profile.recommendations[0]?.direction).toBe("given");
     expect(profile.interests[0]?.kind).toBe("company");
   });
@@ -273,6 +401,9 @@ describe("populated additive profile fields", () => {
       now: fixedNow,
       url: "https://www.linkedin.com/in/alex-rivera-fixture/"
     });
+    expect(profile.identity.contact).toEqual({ email: "alex@example.test" });
+    expect(profile.identity.openTo).toEqual(["Hiring"]);
+    expect(profile.identity.causes).toEqual(["Education"]);
     const filtered = applyProfileSettings(profile, { dataScope: { identity: false } });
     expect(filtered.identity).not.toHaveProperty("contact");
     expect(filtered.identity).not.toHaveProperty("openTo");

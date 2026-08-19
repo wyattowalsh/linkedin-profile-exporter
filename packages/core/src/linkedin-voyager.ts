@@ -416,7 +416,11 @@ export function extractProfileFromVoyagerPayload(
     objectRecord(primaryDb.getElementByUrn(stringValue(profileEntity["*contactInfo"])));
   const contact = contactInfo ? contactFromEntity(contactInfo) : undefined;
   const openTo = stringListFromKeys(profileEntity, ["openTo", "openToStatus"]);
-  const causes = stringListFromKeys(profileEntity, ["causes", "supportedCauses"]);
+  const causes = stringListFromKeys(profileEntity, [
+    "causes",
+    "supportedCauses",
+    "volunteerCauses"
+  ]);
 
   const profile = profileSchema.parse({
     schemaVersion: SCHEMA_VERSION,
