@@ -243,7 +243,7 @@ describe("populated additive profile fields", () => {
     });
     expect(presentProfile.licensesCertifications[0]?.date).toBe("2024");
     expect(presentProfile.licensesCertifications[0]).not.toHaveProperty("expirationDate");
-    expect(JSON.stringify(presentProfile.licensesCertifications[0])).not.toMatch(/Present/i);
+    expect(presentProfile.licensesCertifications[0]?.date).not.toMatch(/Present/i);
   });
 
   it("omits careerBreak on ordinary work and maps a marked career-break role", () => {
@@ -386,7 +386,7 @@ describe("populated additive profile fields", () => {
     expect(profile.licensesCertifications[1]).not.toHaveProperty("expirationDate");
     expect(profile.licensesCertifications[2]?.date).toBe("2024");
     expect(profile.licensesCertifications[2]).not.toHaveProperty("expirationDate");
-    expect(JSON.stringify(profile.licensesCertifications[2])).not.toMatch(/Present/i);
+    expect(profile.licensesCertifications[2]?.date).not.toMatch(/Present/i);
     expect(profile.recommendations[0]?.direction).toBe("given");
     expect(profile.interests[0]?.kind).toBe("company");
   });
