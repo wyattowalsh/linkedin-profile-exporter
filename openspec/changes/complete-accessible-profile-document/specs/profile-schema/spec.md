@@ -44,7 +44,7 @@ volunteering item `cause` values.
 Each recommendation MAY include `direction` of `received` or `given`. Extraction SHALL
 set `given` when the entity is a recommendee-side item or has a given recommendation
 type, and `received` when it is a recommender-side item or has a received recommendation
-type. Direction SHALL be omitted when both sides are present, neither side is present,
+type. Direction SHALL be omitted when both sides are present or neither side is present,
 and no given/received type is available.
 
 #### Scenario: Given and received recommendations coexist

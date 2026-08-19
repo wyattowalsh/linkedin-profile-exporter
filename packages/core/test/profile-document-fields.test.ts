@@ -14,7 +14,8 @@ import {
   certificationDates,
   contactFromEntity,
   interestKindFromUrl,
-  recommendationDirection
+  recommendationDirection,
+  resolveInterestKind
 } from "../src/profile-document-fields";
 
 const fixedNow = "2026-05-25T12:00:00.000Z";
@@ -50,6 +51,11 @@ describe("profile document field helpers", () => {
     expect(interestKindFromUrl("https://example.test/local-first")).toBeUndefined();
     expect(interestKindFromUrl("https://example.test/company/foo")).toBeUndefined();
     expect(interestKindFromUrl("https://www.linkedin.com/feed/")).toBeUndefined();
+    expect(resolveInterestKind("https://example.test/company/foo", "company")).toBeUndefined();
+    expect(resolveInterestKind("https://www.linkedin.com/company/local-first/", "group")).toBe(
+      "group"
+    );
+    expect(resolveInterestKind(undefined, "school")).toBe("school");
   });
 
   it("filters Present and same-string certification dates", () => {
@@ -72,6 +78,9 @@ describe("profile document field helpers", () => {
     expect(contactFromEntity({ ims: [{ provider: "SKYPE", id: "alex.skype" }] })).toEqual({
       im: "alex.skype"
     });
+    expect(
+      contactFromEntity({ ims: [{ handle: "ignored.handle", id: "alex.skype" }] })
+    ).toEqual({ im: "alex.skype" });
     expect(contactFromEntity({ ims: [{ id: "urn:li:member:123" }] })).toBeUndefined();
     expect(careerBreakFromEntity({ $recipeType: "com.linkedin.voyager.dash.CareerBreak" })).toBe(
       "Career break"
@@ -81,6 +90,9 @@ describe("profile document field helpers", () => {
         $recipeTypes: ["com.linkedin.voyager.dash.deco.identity.profile.CareerBreakPosition"]
       })
     ).toBe("Career break");
+    expect(
+      careerBreakFromEntity({ type: "com.linkedin.voyager.dash.CareerBreak" })
+    ).toBeUndefined();
     expect(careerBreakFromEntity({ title: "Director of Engineering" })).toBeUndefined();
     expect(recommendationDirection({ "*recommender": "urn:li:fs_miniProfile:jordan" })).toBe(
       "received"
@@ -369,6 +381,11 @@ describe("populated additive profile fields", () => {
           <span data-field="name">Local-first software</span>
           <a data-field="url" href="https://www.linkedin.com/company/local-first/">Local-first</a>
         </article>
+        <article data-lpe-item>
+          <span data-field="name">External company</span>
+          <p data-field="kind">company</p>
+          <a data-field="url" href="https://example.test/company/foo">External</a>
+        </article>
       </section>
     </main>
   </body>
@@ -389,6 +406,7 @@ describe("populated additive profile fields", () => {
     expect(profile.licensesCertifications[2]?.date).not.toMatch(/Present/i);
     expect(profile.recommendations[0]?.direction).toBe("given");
     expect(profile.interests[0]?.kind).toBe("company");
+    expect(profile.interests[1]).not.toHaveProperty("kind");
   });
 
   it("drops contact, openTo, and causes when identity is out of data scope", () => {

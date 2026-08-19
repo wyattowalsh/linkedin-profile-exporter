@@ -34,12 +34,11 @@ function imText(value: unknown): string | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   const record = asRecord(value);
   if (!record) return undefined;
-  const named =
-    cleaned(record.imAccountName) ?? cleaned(record.username) ?? cleaned(record.handle);
+  const named = cleaned(record.imAccountName) ?? cleaned(record.username);
   if (named) return named;
   const id = cleaned(record.id);
   if (id && !isLinkedInUrn(id)) return id;
-  return cleaned(record.text) ?? cleaned(record.name);
+  return cleaned(record.handle) ?? cleaned(record.text) ?? cleaned(record.name);
 }
 
 function firstIm(value: unknown): string | undefined {
@@ -118,15 +117,22 @@ function recipeValues(entity: Record<string, unknown>): unknown[] {
   return values;
 }
 
+function isLinkedInHost(url: string): boolean {
+  try {
+    return /(^|\.)linkedin\.com$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function interestKindFromUrl(url: string | undefined): InterestKind | undefined {
-  if (!url) return undefined;
+  if (!url || !isLinkedInHost(url)) return undefined;
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
     return undefined;
   }
-  if (!/(^|\.)linkedin\.com$/i.test(parsed.hostname)) return undefined;
   const path = parsed.pathname;
   if (path.includes("/company/")) return "company";
   if (path.includes("/groups/")) return "group";
@@ -134,6 +140,14 @@ export function interestKindFromUrl(url: string | undefined): InterestKind | und
   if (path.includes("/school/")) return "school";
   if (path.includes("/in/")) return "topVoice";
   return undefined;
+}
+
+export function resolveInterestKind(
+  url: string | undefined,
+  fieldValue?: string
+): InterestKind | undefined {
+  if (url && !isLinkedInHost(url)) return undefined;
+  return parseInterestKindField(fieldValue) ?? interestKindFromUrl(url);
 }
 
 export function recommendationDirection(
@@ -181,7 +195,7 @@ export function certificationDates(
 export function careerBreakFromEntity(entity: Record<string, unknown>): string | undefined {
   const labeled = firstString(entity, ["careerBreak", "careerBreakType"]);
   if (labeled) return labeled;
-  const type = firstString(entity, ["$type", "type", "$recipeType"]);
+  const type = firstString(entity, ["$type", "$recipeType"]);
   if (type && /careerbreak/i.test(type)) return "Career break";
   if (recipeValues(entity).some((item) => /careerbreak/i.test(String(item)))) {
     return "Career break";

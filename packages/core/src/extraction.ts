@@ -1,9 +1,8 @@
 import {
   certificationDates,
   contactFromEntity,
-  interestKindFromUrl,
-  parseInterestKindField,
-  parseRecommendationDirectionField
+  parseRecommendationDirectionField,
+  resolveInterestKind
 } from "./profile-document-fields";
 import {
   SCHEMA_VERSION,
@@ -529,8 +528,7 @@ function readTextItems(document: Document, section: string): string[] {
 function readInterestItems(document: Document, options?: ExtractionOptions): Profile["interests"] {
   return readStructuredItems(document, "interests", (item) => {
     const url = href(item, '[data-field="url"], a[href]');
-    const kind =
-      parseInterestKindField(text(item, '[data-field="kind"]')) ?? interestKindFromUrl(url);
+    const kind = resolveInterestKind(url, text(item, '[data-field="kind"]'));
     return {
       name:
         text(item, '[data-field="name"]') ??
