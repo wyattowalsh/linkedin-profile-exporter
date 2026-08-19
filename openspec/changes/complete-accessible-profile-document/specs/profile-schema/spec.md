@@ -15,7 +15,7 @@ omitted. Profile-entity location `address` SHALL NOT be copied into `identity.co
 ### Requirement: Optional open-to chips
 
 Identity MAY include `openTo` as an array of short labels when Open-to chips are visible
-on the current profile.
+on the current profile. `openTo` SHALL be omitted when those chips are not exposed.
 
 #### Scenario: No open-to chips
 
