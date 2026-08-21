@@ -5,6 +5,13 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   srcDir: ".",
+  hooks: {
+    "entrypoints:found": (wxt, entrypoints) => {
+      if (wxt.config.browser === "chrome" || wxt.config.browser === "edge") return;
+      const sidepanelIndex = entrypoints.findIndex(({ name }) => name === "sidepanel");
+      if (sidepanelIndex !== -1) entrypoints.splice(sidepanelIndex, 1);
+    }
+  },
   manifest: ({ browser }) => ({
     name: "LinkedIn Profile Exporter",
     short_name: "Profile Exporter",
