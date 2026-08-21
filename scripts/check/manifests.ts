@@ -35,6 +35,7 @@ for (const target of targets) {
     browser_action?: ManifestAction;
     options_ui?: unknown;
     icons?: Record<string, string>;
+    side_panel?: unknown;
     browser_specific_settings?: {
       gecko?: {
         data_collection_permissions?: {
@@ -88,11 +89,21 @@ for (const target of targets) {
   }
   if (target === "chrome-mv3" || target === "edge-mv3") {
     if (!permissions.has("scripting")) failures.push(`${path}: scripting permission missing`);
+    if (!permissions.has("sidePanel")) failures.push(`${path}: sidePanel permission missing`);
     if (!permissions.has("tabs")) failures.push(`${path}: tabs permission missing`);
+    if (!manifest.side_panel) failures.push(`${path}: side_panel missing`);
   } else if (permissions.has("scripting")) {
     failures.push(`${path}: scripting permission should be limited to Chrome/Edge MV3 targets`);
   } else if (permissions.has("tabs")) {
     failures.push(`${path}: tabs permission should be limited to Chrome/Edge MV3 targets`);
+  }
+  if (target === "firefox-mv2" || target === "safari-mv2") {
+    if (permissions.has("sidePanel")) {
+      failures.push(`${path}: sidePanel permission should be limited to Chrome/Edge MV3 targets`);
+    }
+    if (manifest.side_panel) {
+      failures.push(`${path}: side_panel should be limited to Chrome/Edge MV3 targets`);
+    }
   }
 
   const hostPermissions = new Set([
